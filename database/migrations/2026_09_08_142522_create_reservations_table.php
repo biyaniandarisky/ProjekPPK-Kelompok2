@@ -21,7 +21,15 @@ return new class extends Migration
             $table->time('start_time');
             $table->time('end_time');
             
-            $table->string('status', 20)->default('pending'); 
+            // Tujuan penggunaan (wajib diisi oleh pengguna)
+            $table->string('tujuan', 200);
+            
+            // Status reservasi: pending, confirmed, cancelled, rejected
+            $table->string('status', 20)->default('pending');
+            
+            // Alasan pembatalan/penolakan (diisi oleh petugas/admin)
+            $table->string('alasan_batal', 200)->nullable();
+            
             $table->timestamps();
         });
     }
