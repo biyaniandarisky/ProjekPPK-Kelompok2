@@ -10,23 +10,14 @@ return new class extends Migration
     {
         Schema::create('reports', function (Blueprint $table) {
             $table->id();
-            
-            // Relasi ke tabel users & facilities
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('facility_id')->constrained('facilities')->onDelete('cascade');
-            $table->foreignId('petugas_id')->nullable()->constrained('users')->onDelete('set null');
-            
-            // Detail laporan
-            $table->string('kategori_laporan', 50);
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('petugas_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->enum('kategori_laporan', ['Kerusakan', 'Kebersihan', 'Fasilitas', 'Lainnya']);
             $table->string('deskripsi', 150);
-            $table->string('foto', 255)->nullable();
-            
-            // Status laporan: baru, diproses, selesai, ditolak
-            $table->string('status_laporan', 50)->default('baru');
-            
-            // Catatan resolusi - diisi petugas saat menutup laporan
+            $table->string('foto')->nullable();
+            $table->enum('status_laporan', ['baru', 'diproses', 'selesai', 'ditolak'])->default('baru');
             $table->text('catatan_resolusi')->nullable();
-            
             $table->timestamps();
         });
     }

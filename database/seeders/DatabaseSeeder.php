@@ -3,311 +3,154 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Carbon\Carbon;
+use App\Models\User;
+use App\Models\Facility;
+use App\Models\Reservation;
+use App\Models\Report;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // ============================================
-        // 1. DATA USERS
-        // ============================================
-        
-        // Admin
-        $adminId = DB::table('users')->insertGetId([
-            'name' => 'Admin Kampus',
+        // 1. Akun Admin
+        $admin = User::create([
+            'name' => 'Administrator Kampus Utama',
             'email' => 'admin@kampus.ac.id',
-            'email_verified_at' => Carbon::now(),
             'password' => Hash::make('password'),
             'role' => 'admin',
             'status_verifikasi' => 'verified',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
         ]);
 
-        // Petugas
-        $petugasId = DB::table('users')->insertGetId([
-            'name' => 'Petugas Fasilitas',
+        // 2. Akun Petugas Sarana
+        $petugas = User::create([
+            'name' => 'Budi Santoso (Petugas Sarpras)',
             'email' => 'petugas@kampus.ac.id',
-            'email_verified_at' => Carbon::now(),
             'password' => Hash::make('password'),
             'role' => 'petugas',
             'status_verifikasi' => 'verified',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
         ]);
 
-        // Pengguna (Mahasiswa)
-        $pengguna1Id = DB::table('users')->insertGetId([
-            'name' => 'Mahasiswa Satu',
+        // 3. Akun Pengguna Terverifikasi
+        $mhs1 = User::create([
+            'name' => 'Ahmad Fauzi (Mahasiswa TI)',
             'email' => 'mahasiswa1@kampus.ac.id',
-            'email_verified_at' => Carbon::now(),
             'password' => Hash::make('password'),
             'role' => 'pengguna',
             'status_verifikasi' => 'verified',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
         ]);
 
-        $pengguna2Id = DB::table('users')->insertGetId([
-            'name' => 'Mahasiswa Dua',
+        $mhs2 = User::create([
+            'name' => 'Rina Sasmita (Mahasiswi SI)',
             'email' => 'mahasiswa2@kampus.ac.id',
-            'email_verified_at' => Carbon::now(),
             'password' => Hash::make('password'),
             'role' => 'pengguna',
             'status_verifikasi' => 'verified',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
         ]);
 
-        $pengguna3Id = DB::table('users')->insertGetId([
-            'name' => 'Mahasiswa Tiga',
-            'email' => 'mahasiswa3@kampus.ac.id',
-            'email_verified_at' => Carbon::now(),
+        // 4. Akun Pengguna Pending (Uji tolak verifikasi)
+        User::create([
+            'name' => 'Bambang Sudarsono (Mahasiswa Baru)',
+            'email' => 'mahasiswa4@kampus.ac.id',
             'password' => Hash::make('password'),
             'role' => 'pengguna',
             'status_verifikasi' => 'pending',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
         ]);
 
-        // ============================================
-        // 2. DATA FASILITAS KAMPUS
-        // ============================================
-        
-        $facility1Id = DB::table('facilities')->insertGetId([
-            'nama_fasilitas' => 'Ruang Kelas A101',
+        // 5. Data Fasilitas Master
+        $f1 = Facility::create([
+            'nama_fasilitas' => 'Ruang Kuliah Teori B101',
             'tipe' => 'Ruangan',
-            'lokasi' => 'Gedung A Lt. 1',
-            'kapasitas' => 40,
-            'deskripsi' => 'Ruang kelas dengan AC dan proyektor',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        $facility2Id = DB::table('facilities')->insertGetId([
-            'nama_fasilitas' => 'Ruang Kelas A102',
-            'tipe' => 'Ruangan',
-            'lokasi' => 'Gedung A Lt. 1',
-            'kapasitas' => 40,
-            'deskripsi' => 'Ruang kelas dengan AC dan whiteboard',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        $facility3Id = DB::table('facilities')->insertGetId([
-            'nama_fasilitas' => 'Ruang Meeting B201',
-            'tipe' => 'Ruangan',
-            'lokasi' => 'Gedung B Lt. 2',
-            'kapasitas' => 15,
-            'deskripsi' => 'Ruang meeting dengan AC dan meja rapat',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        $facility4Id = DB::table('facilities')->insertGetId([
-            'nama_fasilitas' => 'Laboratorium Komputer C301',
-            'tipe' => 'Laboratorium',
-            'lokasi' => 'Gedung C Lt. 3',
-            'kapasitas' => 30,
-            'deskripsi' => 'Lab komputer dengan 30 PC dan internet',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        $facility5Id = DB::table('facilities')->insertGetId([
-            'nama_fasilitas' => 'Auditorium',
-            'tipe' => 'Ruangan',
-            'lokasi' => 'Gedung Serbaguna',
-            'kapasitas' => 200,
-            'deskripsi' => 'Auditorium dengan sound system dan layar LED',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        $facility6Id = DB::table('facilities')->insertGetId([
-            'nama_fasilitas' => 'Lapangan Basket',
-            'tipe' => 'Olahraga',
-            'lokasi' => 'Area Outdoor',
-            'kapasitas' => 20,
-            'deskripsi' => 'Lapangan basket outdoor standar',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        $facility7Id = DB::table('facilities')->insertGetId([
-            'nama_fasilitas' => 'Lapangan Futsal',
-            'tipe' => 'Olahraga',
-            'lokasi' => 'Area Outdoor',
-            'kapasitas' => 14,
-            'deskripsi' => 'Lapangan futsal dengan rumput sintetis',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        $facility8Id = DB::table('facilities')->insertGetId([
-            'nama_fasilitas' => 'Perpustakaan Ruang Baca',
-            'tipe' => 'Fasilitas Umum',
-            'lokasi' => 'Gedung Perpustakaan Lt. 2',
+            'lokasi' => 'Gedung Rektorat Lantai 1',
             'kapasitas' => 50,
-            'deskripsi' => 'Ruang baca dengan AC dan WiFi',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
+            'deskripsi' => 'Dilengkapi proyektor laser, sistem audio nirkabel, AC inverter, dan papan tulis ganda.',
+            'foto' => 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80',
+            'status' => 'aktif',
         ]);
 
-        // ============================================
-        // 3. DATA RESERVASI
-        // ============================================
-        
-        // Reservasi aktif (confirmed) - hari ini dan besok
-        DB::table('reservations')->insert([
-            'user_id' => $pengguna1Id,
-            'facility_id' => $facility1Id,
-            'petugas_id' => $petugasId,
-            'tanggal' => Carbon::now()->format('Y-m-d'),
+        $f2 = Facility::create([
+            'nama_fasilitas' => 'Laboratorium Rekayasa Perangkat Lunak',
+            'tipe' => 'Laboratorium',
+            'lokasi' => 'Gedung Sains & Teknologi Lantai 3',
+            'kapasitas' => 35,
+            'deskripsi' => '35 PC Core i7, koneksi LAN Gigabit, pendingin udara ganda, dan smart TV presentasi.',
+            'foto' => 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=800&q=80',
+            'status' => 'aktif',
+        ]);
+
+        $f3 = Facility::create([
+            'nama_fasilitas' => 'Gelanggang Olahraga & Lapangan Basket Indoor',
+            'tipe' => 'Olahraga',
+            'lokasi' => 'Kompleks Olahraga Barat Kampus',
+            'kapasitas' => 200,
+            'deskripsi' => 'Lantai vinyl standar FIBA, tribun penonton, ruang ganti bersih, dan pencahayaan LED.',
+            'foto' => 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&q=80',
+            'status' => 'aktif',
+        ]);
+
+        $f4 = Facility::create([
+            'nama_fasilitas' => 'Auditorium Utama Graha Cendekia',
+            'tipe' => 'Fasilitas Umum',
+            'lokasi' => 'Pusat Kegiatan Mahasiswa Kampus',
+            'kapasitas' => 500,
+            'deskripsi' => 'Panggung akustik megah, lighting teater, proyektor raksasa, cocok untuk wisuda dan seminar.',
+            'foto' => 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80',
+            'status' => 'aktif',
+        ]);
+
+        $f5 = Facility::create([
+            'nama_fasilitas' => 'Laboratorium Jaringan & Keamanan Siber',
+            'tipe' => 'Laboratorium',
+            'lokasi' => 'Gedung Sains & Teknologi Lantai 2',
+            'kapasitas' => 30,
+            'deskripsi' => 'Rak server rackmount, switch manageable Cisco, dan kabel patch fiber optic.',
+            'foto' => 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80',
+            'status' => 'dalam_perbaikan',
+        ]);
+
+        // 6. Data Reservasi Awal
+        $besok = now()->addDay()->toDateString();
+        Reservation::create([
+            'facility_id' => $f1->id,
+            'user_id' => $mhs1->id,
+            'petugas_id' => $petugas->id,
+            'tanggal' => $besok,
             'start_time' => '08:00:00',
             'end_time' => '10:00:00',
-            'tujuan' => 'Kuliah Pengantar Pemrograman',
-            'status' => 'confirmed',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
+            'tujuan' => 'Kuliah Praktikum Pemrograman Web Lanjutan Semester 4',
+            'status' => 'approved',
         ]);
 
-        DB::table('reservations')->insert([
-            'user_id' => $pengguna2Id,
-            'facility_id' => $facility4Id,
-            'petugas_id' => $petugasId,
-            'tanggal' => Carbon::now()->addDay()->format('Y-m-d'),
+        Reservation::create([
+            'facility_id' => $f2->id,
+            'user_id' => $mhs2->id,
+            'petugas_id' => null,
+            'tanggal' => $besok,
             'start_time' => '13:00:00',
             'end_time' => '15:00:00',
-            'tujuan' => 'Praktikum Basis Data',
-            'status' => 'confirmed',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        // Reservasi pending (menunggu konfirmasi)
-        DB::table('reservations')->insert([
-            'user_id' => $pengguna1Id,
-            'facility_id' => $facility3Id,
-            'petugas_id' => null,
-            'tanggal' => Carbon::now()->addDays(2)->format('Y-m-d'),
-            'start_time' => '09:00:00',
-            'end_time' => '11:00:00',
-            'tujuan' => 'Rapat Organisasi Mahasiswa',
+            'tujuan' => 'Rapat Kerja Himpunan Mahasiswa Informatika',
             'status' => 'pending',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
         ]);
 
-        DB::table('reservations')->insert([
-            'user_id' => $pengguna2Id,
-            'facility_id' => $facility6Id,
-            'petugas_id' => null,
-            'tanggal' => Carbon::now()->addDays(3)->format('Y-m-d'),
-            'start_time' => '15:00:00',
-            'end_time' => '17:00:00',
-            'tujuan' => 'Latihan Basket UKM',
-            'status' => 'pending',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        // Reservasi batal/ditolak
-        DB::table('reservations')->insert([
-            'user_id' => $pengguna3Id,
-            'facility_id' => $facility5Id,
-            'petugas_id' => $petugasId,
-            'tanggal' => Carbon::now()->subDay()->format('Y-m-d'),
-            'start_time' => '10:00:00',
-            'end_time' => '12:00:00',
-            'tujuan' => 'Seminar Proposal',
-            'status' => 'cancelled',
-            'alasan_batal' => 'Dibatalkan oleh petugas karena bentrok jadwal',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        // ============================================
-        // 4. DATA LAPORAN
-        // ============================================
-        
-        // Laporan baru
-        DB::table('reports')->insert([
-            'user_id' => $pengguna1Id,
-            'facility_id' => $facility1Id,
-            'petugas_id' => null,
+        // 7. Data Laporan Awal
+        Report::create([
+            'facility_id' => $f1->id,
+            'user_id' => $mhs1->id,
+            'petugas_id' => $petugas->id,
             'kategori_laporan' => 'Kerusakan',
-            'deskripsi' => 'AC di ruang kelas A101 tidak dingin',
-            'foto' => null,
-            'status_laporan' => 'baru',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        // Laporan diproses
-        DB::table('reports')->insert([
-            'user_id' => $pengguna2Id,
-            'facility_id' => $facility4Id,
-            'petugas_id' => $petugasId,
-            'kategori_laporan' => 'Kerusakan',
-            'deskripsi' => '3 unit PC di laboratorium C301 tidak bisa menyala',
-            'foto' => null,
-            'status_laporan' => 'diproses',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        // Laporan selesai
-        DB::table('reports')->insert([
-            'user_id' => $pengguna1Id,
-            'facility_id' => $facility6Id,
-            'petugas_id' => $petugasId,
-            'kategori_laporan' => 'Fasilitas',
-            'deskripsi' => 'Ring basket lapangan outdoor longgar',
-            'foto' => null,
+            'deskripsi' => 'Proyektor ruang berkedip dan warna tampilan cenderung menguning.',
             'status_laporan' => 'selesai',
-            'catatan_resolusi' => 'Ring basket sudah diperbaiki',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
+            'catatan_resolusi' => 'Kabel HDMI dan bohlam lampu proyektor telah diganti oleh teknisi.',
         ]);
 
-        // Laporan ditolak
-        DB::table('reports')->insert([
-            'user_id' => $pengguna3Id,
-            'facility_id' => $facility7Id,
-            'petugas_id' => $petugasId,
-            'kategori_laporan' => 'Kebersihan',
-            'deskripsi' => 'Rumput lapangan futsal tidak terawat',
-            'foto' => null,
-            'status_laporan' => 'ditolak',
-            'catatan_resolusi' => 'Laporan tidak valid, rumput dalam kondisi baik',
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
+        Report::create([
+            'facility_id' => $f5->id,
+            'user_id' => $mhs2->id,
+            'petugas_id' => $petugas->id,
+            'kategori_laporan' => 'Kerusakan',
+            'deskripsi' => 'Pendingin ruangan AC mati total sehingga lab panas.',
+            'status_laporan' => 'diproses',
+            'catatan_resolusi' => 'Menunggu penggantian kompresor AC oleh pihak rekanan teknis.',
         ]);
-
-        // ============================================
-        // 5. TAMPILKAN INFORMASI
-        // ============================================
-        $this->command->info('Database seeding berhasil!');
-        $this->command->info('');
-        $this->command->info('Data yang dimasukkan:');
-        $this->command->info('   Users: 6 (1 admin, 1 petugas, 4 pengguna)');
-        $this->command->info('   Facilities: 8 fasilitas kampus');
-        $this->command->info('   Reservations: 5 reservasi');
-        $this->command->info('   Reports: 4 laporan');
-        $this->command->info('');
-        $this->command->info('Akun Login:');
-        $this->command->info('   Admin    : admin@kampus.ac.id / password');
-        $this->command->info('   Petugas  : petugas@kampus.ac.id / password');
-        $this->command->info('   Pengguna : mahasiswa1@kampus.ac.id / password');
-        $this->command->info('   Pengguna : mahasiswa2@kampus.ac.id / password');
-        $this->command->info('   Pengguna : mahasiswa3@kampus.ac.id / password');
-        $this->command->info('');
-        $this->command->info('Catatan:');
-        $this->command->info('   - Mahasiswa3 status verifikasi masih pending');
-        $this->command->info('   - Gunakan tanggal hari ini untuk reservasi aktif');
     }
 }

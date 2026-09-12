@@ -10,27 +10,19 @@ return new class extends Migration
     {
         Schema::create('reservations', function (Blueprint $table) {
             $table->id();
-            
-            // Relasi ke tabel users & facilities
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade'); // Pemesan
-            $table->foreignId('facility_id')->constrained('facilities')->onDelete('cascade'); // Fasilitas yang dipesan
-            $table->foreignId('petugas_id')->nullable()->constrained('users')->onDelete('set null'); // Petugas yang ngurus
-            
-            // Waktu penggunaan
+            $table->foreignId('facility_id')->constrained('facilities')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('petugas_id')->nullable()->constrained('users')->nullOnDelete();
             $table->date('tanggal');
             $table->time('start_time');
             $table->time('end_time');
-            
-            // Tujuan penggunaan (wajib diisi oleh pengguna)
             $table->string('tujuan', 200);
-            
-            // Status reservasi: pending, confirmed, cancelled, rejected
-            $table->string('status', 20)->default('pending');
-            
-            // Alasan pembatalan/penolakan (diisi oleh petugas/admin)
-            $table->string('alasan_batal', 200)->nullable();
-            
+            $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending');
+            $table->text('alasan_batal')->nullable();
             $table->timestamps();
+
+            // Composite index untuk kecepatan query validasi bentrok jadwal
+            $table->index(['facility_id', 'tanggal', 'status']);
         });
     }
 

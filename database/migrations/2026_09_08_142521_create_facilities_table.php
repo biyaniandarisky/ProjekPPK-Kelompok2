@@ -10,11 +10,13 @@ return new class extends Migration
     {
         Schema::create('facilities', function (Blueprint $table) {
             $table->id();
-            $table->string('nama_fasilitas', 50);
-            $table->string('tipe', 50);
-            $table->string('lokasi', 50);
-            $table->integer('kapasitas');
-            $table->string('deskripsi', 150)->nullable();
+            $table->string('nama_fasilitas', 150);
+            $table->enum('tipe', ['Ruangan', 'Laboratorium', 'Olahraga', 'Fasilitas Umum']);
+            $table->string('lokasi', 100);
+            $table->integer('kapasitas')->unsigned();
+            $table->text('deskripsi')->nullable();
+            $table->string('foto')->nullable();
+            $table->enum('status', ['aktif', 'dalam_perbaikan', 'nonaktif'])->default('aktif');
             $table->timestamps();
         });
     }

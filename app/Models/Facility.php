@@ -9,15 +9,23 @@ class Facility extends Model
 {
     use HasFactory;
 
-    // Nama tabel di database Aiven
-    protected $table = 'facilities';
-
-    // Kolom yang boleh diisi
     protected $fillable = [
         'nama_fasilitas',
         'tipe',
         'lokasi',
         'kapasitas',
         'deskripsi',
+        'foto',
+        'status',
     ];
+
+    public function reservations()
+    {
+        return $this->hasMany(Reservation::class, 'facility_id');
+    }
+
+    public function reports()
+    {
+        return $this->hasMany(Report::class, 'facility_id');
+    }
 }
