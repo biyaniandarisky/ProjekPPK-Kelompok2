@@ -12,7 +12,7 @@
                 extend: {
                     colors: {
                         navy: '#1e3a8a',
-                        emerald: '#10b981',
+                        brand: '#10b981',
                     }
                 }
             }
