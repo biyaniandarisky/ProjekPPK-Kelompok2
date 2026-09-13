@@ -9,6 +9,7 @@ use App\Services\ReservationService;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\Report;
+use Illuminate\Support\Facades\Auth;
 
 class PenggunaController extends Controller
 {
