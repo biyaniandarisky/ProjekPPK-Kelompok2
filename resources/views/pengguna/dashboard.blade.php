@@ -3,7 +3,7 @@
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8" 
     x-data="{ 
-        showReservasiModal: false, 
+        showReservasiModal: {{ (isset($selectedFacilityId) && $selectedFacilityId) ? 'true' : 'false' }}, 
         showLaporanModal: false, 
         showRiwayatReservasi: false, 
         showRiwayatLaporan: false,
@@ -12,8 +12,8 @@
             this.showLaporanModal = false;
             this.showRiwayatReservasi = false;
             this.showRiwayatLaporan = false;
-            if (window.location.hash) {
-                history.replaceState(null, null, ' ');
+            if (window.location.hash || window.location.search) {
+                history.replaceState(null, null, window.location.pathname);
             }
         }
     }"
@@ -22,12 +22,16 @@
             if (window.location.hash === '#reservasi-saya') { showRiwayatReservasi = true; }
             if (window.location.hash === '#laporan-saya') { showRiwayatLaporan = true; }
         };
+        checkHash();
         window.addEventListener('hashchange', checkHash);
     ">
     
-    <div>
-        <h1 class="text-2xl font-black text-slate-900">Panel Mahasiswa / Dosen</h1>
-        <p class="text-sm text-slate-500">Kelola reservasi dan laporan kendala fasilitas kamu di sini.</p>
+    <!-- Title Section -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-black text-slate-900">Panel Mahasiswa / Dosen</h1>
+            <p class="text-sm text-slate-500">Kelola reservasi dan laporan kendala fasilitas kamu di sini.</p>
+        </div>
     </div>
 
     <!-- Statistik Cards -->
@@ -103,17 +107,17 @@
 
     <!-- Modal 1: Form Reservasi Baru -->
     <div x-show="showReservasiModal" 
-         x-cloak
-         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-150"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0">
+        x-cloak
+        class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0">
         
         <div @click.outside="closeModals()" 
-             class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 relative">
+            class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 relative">
             
             <div class="flex justify-between items-center mb-4">
                 <h2 class="font-bold text-slate-800 text-base">Form Ajukan Reservasi</h2>
@@ -126,32 +130,82 @@
 
             <form action="{{ route('pengguna.reservasi.store') }}" method="POST" class="space-y-3 text-xs">
                 @csrf
-                <div>
-                    <label class="block font-bold text-slate-600 mb-1">Fasilitas</label>
-                    <select name="facility_id" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl" required>
-                        <option value="">Pilih Fasilitas</option>
+                
+                <!-- Searchable Dropdown Fasilitas -->
+                <div x-data="{ 
+                    open: false, 
+                    search: '', 
+                    selectedId: '{{ $selectedFacilityId ?? '' }}', 
+                    facilities: [
                         @foreach($facilities as $facility)
-                            <option value="{{ $facility->id }}">{{ $facility->nama_fasilitas }} ({{ $facility->lokasi }})</option>
+                            { id: '{{ $facility->id }}', name: '{{ addslashes($facility->nama_fasilitas) }} ({{ addslashes($facility->lokasi) }})' },
                         @endforeach
-                    </select>
+                    ],
+                    init() {
+                        let found = this.facilities.find(f => f.id == this.selectedId);
+                        if (found) this.search = found.name;
+                    },
+                    get filteredFacilities() {
+                        if (!this.search || !this.open) return this.facilities;
+                        return this.facilities.filter(f => f.name.toLowerCase().includes(this.search.toLowerCase()));
+                    },
+                    selectItem(item) {
+                        this.selectedId = item.id;
+                        this.search = item.name;
+                        this.open = false;
+                    }
+                }" class="relative">
+                    <label class="block font-bold text-slate-600 mb-1">Fasilitas</label>
+                    
+                    <input type="hidden" name="facility_id" :value="selectedId" required>
+
+                    <div class="relative">
+                        <input type="text" 
+                            x-model="search" 
+                            @focus="open = true"
+                            @input="open = true"
+                            placeholder="Ketik atau pilih fasilitas..." 
+                            class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-semibold focus:ring-2 focus:ring-blue-900 focus:outline-none pr-8">
+                        
+                        <div @click="open = !open" class="absolute right-3 top-3 text-slate-400 cursor-pointer">
+                            ▼
+                        </div>
+                    </div>
+
+                    <!-- Dropdown List -->
+                    <div x-show="open" 
+                        @click.outside="open = false" 
+                        x-cloak
+                        class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        <template x-for="item in filteredFacilities" :key="item.id">
+                            <div @click="selectItem(item)"
+                                class="p-2.5 hover:bg-blue-50 cursor-pointer text-xs font-medium text-slate-800 transition border-b border-slate-50 last:border-none">
+                                <span x-text="item.name"></span>
+                            </div>
+                        </template>
+                        <div x-show="filteredFacilities.length === 0" class="p-2.5 text-slate-400 text-xs text-center">
+                            Fasilitas tidak ditemukan
+                        </div>
+                    </div>
                 </div>
+
                 <div class="grid grid-cols-3 gap-3">
                     <div>
                         <label class="block font-bold text-slate-600 mb-1">Tanggal</label>
-                        <input type="date" name="tanggal" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl" required>
+                        <input type="date" name="tanggal" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" required>
                     </div>
                     <div>
                         <label class="block font-bold text-slate-600 mb-1">Jam Mulai</label>
-                        <input type="time" name="start_time" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl" required>
+                        <input type="time" name="start_time" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" required>
                     </div>
                     <div>
                         <label class="block font-bold text-slate-600 mb-1">Jam Selesai</label>
-                        <input type="time" name="end_time" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl" required>
+                        <input type="time" name="end_time" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" required>
                     </div>
                 </div>
                 <div>
                     <label class="block font-bold text-slate-600 mb-1">Tujuan Penggunaan</label>
-                    <textarea name="tujuan" rows="3" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl" required></textarea>
+                    <textarea name="tujuan" rows="3" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" required></textarea>
                 </div>
                 <div class="flex gap-2 pt-2">
                     <button type="button" @click="closeModals()" class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition">Batal</button>
@@ -163,17 +217,17 @@
 
     <!-- Modal 2: Form Laporan Kendala -->
     <div x-show="showLaporanModal" 
-         x-cloak
-         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-150"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0">
+        x-cloak
+        class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0">
         
         <div @click.outside="closeModals()" 
-             class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 relative">
+            class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 relative">
             
             <div class="flex justify-between items-center mb-4">
                 <h2 class="font-bold text-slate-800 text-base">Form Laporkan Kendala Fasilitas</h2>
@@ -186,26 +240,71 @@
 
             <form action="{{ route('pengguna.laporan.store') }}" method="POST" enctype="multipart/form-data" class="space-y-3 text-xs">
                 @csrf
-                <div>
-                    <label class="block font-bold text-slate-600 mb-1">Fasilitas</label>
-                    <select name="facility_id" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl" required>
-                        <option value="">Pilih Fasilitas</option>
+                
+                <!-- Searchable Dropdown Fasilitas -->
+                <div x-data="{ 
+                    open: false, 
+                    search: '', 
+                    selectedId: '', 
+                    facilities: [
                         @foreach($facilities as $facility)
-                            <option value="{{ $facility->id }}">{{ $facility->nama_fasilitas }}</option>
+                            { id: '{{ $facility->id }}', name: '{{ addslashes($facility->nama_fasilitas) }}' },
                         @endforeach
-                    </select>
+                    ],
+                    get filteredFacilities() {
+                        if (!this.search || !this.open) return this.facilities;
+                        return this.facilities.filter(f => f.name.toLowerCase().includes(this.search.toLowerCase()));
+                    },
+                    selectItem(item) {
+                        this.selectedId = item.id;
+                        this.search = item.name;
+                        this.open = false;
+                    }
+                }" class="relative">
+                    <label class="block font-bold text-slate-600 mb-1">Fasilitas</label>
+                    
+                    <input type="hidden" name="facility_id" :value="selectedId" required>
+
+                    <div class="relative">
+                        <input type="text" 
+                            x-model="search" 
+                            @focus="open = true"
+                            @input="open = true"
+                            placeholder="Ketik atau pilih fasilitas..." 
+                            class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-semibold focus:ring-2 focus:ring-rose-600 focus:outline-none pr-8">
+                        
+                        <div @click="open = !open" class="absolute right-3 top-3 text-slate-400 cursor-pointer">
+                            ▼
+                        </div>
+                    </div>
+
+                    <div x-show="open" 
+                        @click.outside="open = false" 
+                        x-cloak
+                        class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        <template x-for="item in filteredFacilities" :key="item.id">
+                            <div @click="selectItem(item)"
+                                class="p-2.5 hover:bg-rose-50 cursor-pointer text-xs font-medium text-slate-800 transition border-b border-slate-50 last:border-none">
+                                <span x-text="item.name"></span>
+                            </div>
+                        </template>
+                        <div x-show="filteredFacilities.length === 0" class="p-2.5 text-slate-400 text-xs text-center">
+                            Fasilitas tidak ditemukan
+                        </div>
+                    </div>
                 </div>
+
                 <div>
                     <label class="block font-bold text-slate-600 mb-1">Kategori Laporan</label>
-                    <input type="text" name="kategori_laporan" placeholder="Contoh: Kerusakan, Kebersihan" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl" required>
+                    <input type="text" name="kategori_laporan" placeholder="Contoh: Kerusakan, Kebersihan" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" required>
                 </div>
                 <div>
                     <label class="block font-bold text-slate-600 mb-1">Deskripsi</label>
-                    <textarea name="deskripsi" rows="3" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl" placeholder="Jelaskan detail kendala..." required></textarea>
+                    <textarea name="deskripsi" rows="3" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" placeholder="Jelaskan detail kendala..." required></textarea>
                 </div>
                 <div>
                     <label class="block font-bold text-slate-600 mb-1">Foto (opsional)</label>
-                    <input type="file" name="foto" class="w-full text-xs">
+                    <input type="file" name="foto" class="w-full text-xs text-slate-900">
                 </div>
                 <div class="flex gap-2 pt-2">
                     <button type="button" @click="closeModals()" class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition">Batal</button>
@@ -237,7 +336,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        @forelse($reservasis ?? [] as $r)
+                        @forelse($myReservations ?? [] as $r)
                             <tr>
                                 <td class="py-3 px-4 font-bold">{{ $r->facility->nama_fasilitas ?? '-' }}</td>
                                 <td class="py-3 px-4">{{ $r->tanggal }}</td>
@@ -263,44 +362,72 @@
 
     <!-- Modal 4: Riwayat Laporan Saya -->
     <div x-show="showRiwayatLaporan" 
-         x-cloak
-         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        x-cloak
+        class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div @click.outside="closeModals()" 
-             class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+            class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+            
             <div class="flex justify-between items-center border-b pb-3">
-                <h3 class="font-black text-slate-900 text-base">Laporan Kendala Saya</h3>
+                <div>
+                    <h3 class="font-black text-slate-900 text-base">Laporan Kendala Saya</h3>
+                    <p class="text-xs text-slate-500">Status penanganan masalah fasilitas yang dikirim.</p>
+                </div>
                 <button @click="closeModals()" class="text-slate-400 hover:text-slate-600">✕</button>
             </div>
+
             <div class="overflow-x-auto max-h-[60vh]">
                 <table class="w-full text-xs text-left">
                     <thead class="bg-slate-50 text-slate-400 uppercase text-[10px]">
                         <tr>
                             <th class="py-3 px-4">Fasilitas</th>
-                            <th class="py-3 px-4">Kategori</th>
-                            <th class="py-3 px-4">Deskripsi</th>
+                            <th class="py-3 px-4">Tanggal Lapor</th>
+                            <th class="py-3 px-4">Rincian Kendala</th>
                             <th class="py-3 px-4">Status</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        @forelse($reports ?? $laporans ?? [] as $l)
+                        @forelse($myReports ?? [] as $l)
                             <tr>
+                                <!-- Fasilitas -->
                                 <td class="py-3 px-4 font-bold">{{ $l->facility->nama_fasilitas ?? '-' }}</td>
-                                <td class="py-3 px-4">{{ $l->kategori_laporan ?? 'Kerusakan' }}</td>
-                                <td class="py-3 px-4 max-w-xs">{{ $l->deskripsi }}</td>
+                                
+                                <!-- Tanggal Lapor -->
+                                <td class="py-3 px-4 text-slate-600">
+                                    {{ \Carbon\Carbon::parse($l->created_at)->format('d M Y') }}
+                                </td>
+                                
+                                <!-- Rincian Kendala: Menampilkan Kategori + Deskripsi dari Form -->
+                                <td class="py-3 px-4 max-w-xs">
+                                    @if($l->kategori_laporan)
+                                        <span class="font-bold text-slate-800">[{{ $l->kategori_laporan }}]</span>
+                                    @endif
+                                    <span class="text-slate-600">{{ $l->deskripsi ?? '-' }}</span>
+                                </td>
+
+                                <!-- Status -->
                                 <td class="py-3 px-4">
                                     <span class="px-2.5 py-1 rounded-full text-[10px] font-bold
-                                        @if(in_array(strtolower($l->status_laporan ?? $l->status), ['selesai', 'resolved'])) bg-emerald-100 text-emerald-700
-                                        @elseif(in_array(strtolower($l->status_laporan ?? $l->status), ['diproses', 'in_progress'])) bg-amber-100 text-amber-700
-                                        @else bg-slate-100 text-slate-700 @endif">
-                                        {{ ucfirst($l->status_laporan ?? $l->status) }}
+                                        @if(($l->status_laporan ?? $l->status) === 'selesai' || ($l->status_laporan ?? $l->status) === 'resolved') bg-emerald-100 text-emerald-700
+                                        @elseif(($l->status_laporan ?? $l->status) === 'diproses') bg-amber-100 text-amber-700
+                                        @elseif(($l->status_laporan ?? $l->status) === 'ditolak') bg-rose-100 text-rose-700
+                                        @else bg-amber-100 text-amber-700 @endif">
+                                        {{ ucfirst($l->status_laporan ?? $l->status ?? 'Baru') }}
                                     </span>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="py-6 text-center text-slate-400">Belum ada riwayat laporan.</td></tr>
+                            <tr>
+                                <td colspan="4" class="py-6 text-center text-slate-400">Belum ada riwayat laporan.</td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button @click="closeModals()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+                    Tutup
+                </button>
             </div>
         </div>
     </div>

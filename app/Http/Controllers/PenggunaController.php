@@ -9,17 +9,22 @@ use App\Services\ReservationService;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\Report;
-use Illuminate\Support\Facades\Auth;
 
 class PenggunaController extends Controller
 {
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         $userId = auth()->id();
+        $selectedFacilityId = $request->query('facility_id');
+
+        // Ambil data reservasi & laporan pengguna
         $myReservations = Reservation::with('facility')->where('user_id', $userId)->latest()->get();
         $myReports = Report::with('facility')->where('user_id', $userId)->latest()->get();
-        $facilities = Facility::where('status', 'aktif')->get();
+        
+        // Ambil seluruh fasilitas agar dapat dipilih di form/dropdown
+        $facilities = Facility::all();
 
+        // Hitung statistik
         $stats = [
             'total_reservasi' => $myReservations->count(),
             'disetujui'       => $myReservations->where('status', 'approved')->count(),
@@ -27,7 +32,13 @@ class PenggunaController extends Controller
             'total_laporan'   => $myReports->count(),
         ];
 
-        return view('pengguna.dashboard', compact('myReservations', 'myReports', 'facilities', 'stats'));
+        return view('pengguna.dashboard', compact(
+            'myReservations', 
+            'myReports', 
+            'facilities', 
+            'stats', 
+            'selectedFacilityId'
+        ));
     }
 
     public function storeReservasi(StoreReservationRequest $request, ReservationService $service)
@@ -46,6 +57,7 @@ class PenggunaController extends Controller
     public function storeLaporan(StoreReportRequest $request)
     {
         $data = $request->validated();
+        
         $fotoPath = null;
         if ($request->hasFile('foto')) {
             $fotoPath = $request->file('foto')->store('reports', 'public');

@@ -57,7 +57,14 @@
                     <div>
                         <div class="h-44 bg-slate-100 relative">
                             <img src="{{ $fac->foto }}" alt="{{ $fac->nama_fasilitas }}" class="w-full h-full object-cover">
-                            <span class="absolute top-2 left-2 px-2 py-0.5 bg-blue-900/90 text-white rounded text-[10px] font-bold">{{ $fac->tipe }}</span>
+                            
+                            <!-- Status Fasilitas Badge -->
+                            <div class="absolute top-2 left-2 flex gap-1">
+                                <span class="px-2 py-0.5 bg-blue-900/90 text-white rounded text-[10px] font-bold">{{ $fac->tipe }}</span>
+                                @if(in_array($fac->status, ['rusak', 'perbaikan', 'maintenance']))
+                                    <span class="px-2 py-0.5 bg-rose-600 text-white rounded text-[10px] font-bold">Perbaikan</span>
+                                @endif
+                            </div>
                         </div>
                         <div class="p-4 space-y-2 text-xs">
                             <h3 class="font-bold text-slate-900 text-base">{{ $fac->nama_fasilitas }}</h3>
@@ -65,10 +72,18 @@
                             <p class="text-slate-600 line-clamp-2">{{ $fac->deskripsi }}</p>
                         </div>
                     </div>
+                    
+                    <!-- Logic Tombol Pemesanan / Pemicu Pop-Up -->
                     <div class="p-4 pt-0">
-                        <a href="{{ route('pengguna.dashboard') }}" class="block w-full py-2.5 text-center bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl transition">
-                            Pesan Fasilitas Ini
-                        </a>
+                        @if(in_array($fac->status, ['rusak', 'perbaikan', 'maintenance']))
+                            <button @click="showPerbaikanModal = true" type="button" class="w-full py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl transition shadow">
+                                Dalam Perbaikan (Tidak Bisa Dipesan)
+                            </button>
+                        @else
+                            <a href="{{ route('pengguna.dashboard', ['facility_id' => $fac->id]) }}" class="block w-full py-2.5 text-center bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl transition shadow">
+                                Pesan Fasilitas Ini
+                            </a>
+                        @endif
                     </div>
                 </div>
             @endforeach

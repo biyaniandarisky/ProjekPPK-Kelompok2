@@ -27,9 +27,13 @@
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 flex flex-col min-h-screen font-sans antialiased" 
-      x-data="{ showModalReservasi: false, showModalLaporan: false }">
+      x-data="{ 
+          showModalReservasi: false, 
+          showModalLaporan: false,
+          showErrorModal: {{ $errors->any() ? 'true' : 'false' }}
+      }">
 
-    <!-- Navbar Bergaya Traveloka -->
+    <!-- Navbar -->
     <header class="bg-[#1e3a8a] text-white shadow-md sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <a href="{{ route('landing') }}" class="flex items-center gap-3">
@@ -51,7 +55,9 @@
                         <button @click="showModalLaporan = true" type="button" class="px-3 py-2 rounded-lg hover:bg-blue-800 transition">
                             Laporan Saya
                         </button>
-                        <a href="{{ route('pengguna.dashboard') }}" class="px-3.5 py-2 bg-blue-800 hover:bg-blue-700 rounded-xl border border-blue-600/50 transition">
+                        
+                        <!-- Panel Mahasiswa -->
+                        <a href="{{ route('pengguna.dashboard') }}" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow transition">
                             Panel Mahasiswa
                         </a>
                     @elseif(auth()->user()->isAdmin())
@@ -71,7 +77,7 @@
         </div>
     </header>
 
-    <!-- Flash Alerts -->
+    <!-- Flash Alerts (Sukses & Info saja) -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
         @if(session('success'))
             <div class="p-4 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold mb-3">
@@ -81,13 +87,6 @@
         @if(session('info'))
             <div class="p-4 bg-blue-100 border border-blue-300 text-blue-900 rounded-xl text-xs font-bold mb-3">
                 {{ session('info') }}
-            </div>
-        @endif
-        @if($errors->any())
-            <div class="p-4 bg-rose-100 border border-rose-300 text-rose-900 rounded-xl text-xs font-bold mb-3">
-                @foreach($errors->all() as $err)
-                    <div>• {{ $err }}</div>
-                @endforeach
             </div>
         @endif
     </div>
@@ -103,6 +102,48 @@
             <p>&copy; {{ date('Y') }} Sistem Fasilitas Kampus Terpadu. Dibangun dengan Laravel 11/12, MySQL, & Tailwind CSS.</p>
         </div>
     </footer>
+
+    <!-- POP-UP MODAL: PERINGATAN / ERROR VALIDASI -->
+    @if($errors->any())
+    <div x-show="showErrorModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="showErrorModal = false"></div>
+        <div class="flex min-h-full items-center justify-center p-4 text-center">
+            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all w-full max-w-md p-6 border border-rose-100 space-y-4">
+                
+                <!-- Header Modal Error -->
+                <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
+                    <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-black text-slate-900">Perhatian / Kendala</h3>
+                        <p class="text-xs text-slate-500">Silakan periksa kembali isian formulir Anda.</p>
+                    </div>
+                </div>
+
+                <!-- Isi Pesan Error -->
+                <div class="space-y-2 py-2">
+                    @foreach($errors->all() as $err)
+                        <div class="flex items-start gap-2 text-xs font-semibold text-rose-800 bg-rose-50 p-3 rounded-xl border border-rose-100">
+                            <span class="text-rose-500">•</span>
+                            <span>{{ $err }}</span>
+                        </div>
+                    @endforeach
+                </div>
+
+                <!-- Tombol Tutup -->
+                <div class="flex justify-end pt-2 border-t border-slate-100">
+                    <button @click="showErrorModal = false" type="button" class="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow transition">
+                        Saya Mengerti
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    @endif
 
     <!-- POP-UP MODAL: RESERVASI SAYA GLOBAL -->
     @auth
