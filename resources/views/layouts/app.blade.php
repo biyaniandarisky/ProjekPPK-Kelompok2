@@ -38,7 +38,6 @@
 <body class="bg-slate-50 text-slate-900 flex flex-col min-h-screen font-sans antialiased" 
       x-data="{ 
           showModalReservasi: false, 
-          showModalLaporan: false,
           showErrorModal: {{ $errors->any() ? 'true' : 'false' }}
       }">
 
@@ -55,6 +54,7 @@
                             Reservasi Saya
                         </button>
                         <button @click="showModalLaporan = true" type="button" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
+                        <a href="{{ route('pengguna.laporan.index') }}" class="px-3 py-2 rounded-lg hover:bg-blue-800 transition">
                             Laporan Saya
                         </button>
                         <a href="{{ route('pengguna.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">
@@ -248,61 +248,6 @@
         </div>
     </div>
 
-    <!-- POP-UP MODAL: LAPORAN SAYA GLOBAL -->
-    <div x-show="showModalLaporan" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="showModalLaporan = false"></div>
-        <div class="flex min-h-full items-center justify-center p-4">
-            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:w-full sm:max-w-4xl p-6 border border-slate-100 space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div>
-                        <h3 class="text-base font-black text-slate-900">Laporan Kendala Saya</h3>
-                        <p class="text-xs text-slate-500">Status penanganan masalah fasilitas yang dikirim.</p>
-                    </div>
-                    <button @click="showModalLaporan = false" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">✕</button>
-                </div>
-
-                <div class="overflow-y-auto max-h-[60vh] border border-slate-100 rounded-xl">
-                    <table class="w-full text-xs text-left">
-                        <thead class="sticky top-0 bg-slate-50 border-b border-slate-100">
-                            <tr class="text-slate-400 uppercase tracking-wider text-[10px]">
-                                <th class="py-3 px-4">Fasilitas</th>
-                                <th class="py-3 px-4">Tanggal Lapor</th>
-                                <th class="py-3 px-4">Rincian Kendala</th>
-                                <th class="py-3 px-4">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @php
-                                $myReports = \App\Models\Report::where('user_id', auth()->id())->with('facility')->latest()->get();
-                            @endphp
-                            @forelse($myReports as $rep)
-                                <tr class="hover:bg-slate-50/50">
-                                    <td class="py-3 px-4 font-bold text-slate-800">{{ $rep->facility->nama_fasilitas ?? '-' }}</td>
-                                    <td class="py-3 px-4 text-slate-600">{{ $rep->created_at->format('d M Y') }}</td>
-                                    <td class="py-3 px-4 text-slate-600">{{ $rep->deskripsi_kendala }}</td>
-                                    <td class="py-3 px-4">
-                                        @if($rep->status_laporan === 'selesai')
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Selesai Ditangani</span>
-                                        @elseif($rep->status_laporan === 'diproses')
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">Diproses Admin</span>
-                                        @else
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">Baru</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="4" class="py-4 text-center text-slate-400">Belum ada laporan kendala.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="flex justify-end pt-2 border-t border-slate-100">
-                    <button @click="showModalLaporan = false" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition">Tutup</button>
-                </div>
-            </div>
-        </div>
-    </div>
     @endauth
     @stack('scripts')
 </body>
