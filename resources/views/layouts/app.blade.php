@@ -53,11 +53,9 @@
                         <button @click="showModalReservasi = true" type="button" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
                             Reservasi Saya
                         </button>
-<<<<<<< HEAD
-                        <a href="{{ route('pengguna.laporan.index') }}" class="px-3 py-2 rounded-lg hover:bg-blue-800 transition">
-=======
                         <button @click="showModalLaporan = true" type="button" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
->>>>>>> feature/login-landingPage
+                        <a href="{{ route('pengguna.laporan.index') }}" class="px-3 py-2 rounded-lg hover:bg-blue-800 transition">
+                        <button @click="showModalLaporan = true" type="button" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
                             Laporan Saya
                         </button>
                         <a href="{{ route('pengguna.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">
