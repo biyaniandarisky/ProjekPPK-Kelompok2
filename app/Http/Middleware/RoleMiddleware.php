@@ -20,8 +20,8 @@ class RoleMiddleware
         if ($user->role === 'pengguna' && $user->status_verifikasi !== 'verified') {
             auth()->logout();
             $pesan = $user->status_verifikasi === 'pending'
-                ? 'Akun Anda belum diverifikasi admin'
-                : 'Akun Anda ditolak';
+                ? 'Akun Anda sedang diverifikasi oleh admin. Anda belum dapat login sampai akun disetujui.'
+                : 'Verifikasi akun Anda ditolak. Silakan hubungi admin kampus.';
 
             return redirect()->route('login')->withErrors(['email' => $pesan]);
         }

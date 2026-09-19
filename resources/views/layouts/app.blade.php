@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ config('app.name', 'KampusReserve') }}</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'Reservasi Kampus')</title>
+
+    <!-- Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -11,6 +17,9 @@
         tailwind.config = {
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                    },
                     colors: {
                         navy: '#1e3a8a',
                         brand: '#10b981',
@@ -33,44 +42,43 @@
       }">
 
     <!-- Navbar -->
-    <header class="bg-[#1e3a8a] text-white shadow-md sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <a href="{{ route('landing') }}" class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-white text-blue-900 font-black text-xl flex items-center justify-center shadow">K</div>
-                <div>
-                    <div class="font-extrabold text-base leading-tight">KampusReserve</div>
-                    <div class="text-[10px] text-blue-200">Sistem Fasilitas Terpadu</div>
-                </div>
-            </a>
+    <header class="bg-white text-slate-900 border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+            <a href="{{ route('landing') }}" class="font-extrabold text-sm sm:text-base tracking-tight text-slate-900">Reservasi Kampus</a>
 
-            <nav class="flex items-center gap-4 text-xs font-bold">
-                <a href="{{ route('landing') }}" class="px-3 py-2 rounded-lg hover:bg-blue-800 transition">Cari Fasilitas</a>
-                
+            <nav class="flex items-center gap-2 text-xs font-bold">
                 @auth
                     @if(auth()->user()->role === 'pengguna' || (!auth()->user()->isAdmin() && !auth()->user()->isPetugas()))
-                        <button @click="showModalReservasi = true" type="button" class="px-3 py-2 rounded-lg hover:bg-blue-800 transition">
+                        <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Cari Fasilitas</a>
+                        <button @click="showModalReservasi = true" type="button" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
                             Reservasi Saya
                         </button>
+<<<<<<< HEAD
                         <a href="{{ route('pengguna.laporan.index') }}" class="px-3 py-2 rounded-lg hover:bg-blue-800 transition">
+=======
+                        <button @click="showModalLaporan = true" type="button" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
+>>>>>>> feature/login-landingPage
                             Laporan Saya
                         </button>
-                        
-                        <!-- Panel Mahasiswa -->
-                        <a href="{{ route('pengguna.dashboard') }}" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow transition">
+                        <a href="{{ route('pengguna.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">
                             Panel Mahasiswa
                         </a>
                     @elseif(auth()->user()->isAdmin())
-                        <a href="{{ route('admin.dashboard') }}" class="px-3 py-2 bg-blue-950 rounded-lg">Panel Admin</a>
+                        <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Beranda</a>
+                        <a href="{{ route('admin.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Panel Admin</a>
                     @elseif(auth()->user()->isPetugas())
-                        <a href="{{ route('petugas.dashboard') }}" class="px-3 py-2 bg-emerald-600 rounded-lg">Panel Petugas</a>
+                        <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Beranda</a>
+                        <a href="{{ route('petugas.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Panel Petugas</a>
                     @endif
 
                     <form action="{{ route('logout') }}" method="POST" class="inline">
                         @csrf
-                        <button type="submit" class="px-3 py-2 bg-rose-600 hover:bg-rose-700 rounded-xl text-white transition">Keluar</button>
+                        <button type="submit" class="px-3.5 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-lg transition">Keluar</button>
                     </form>
                 @else
-                    <a href="{{ route('login') }}" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow transition">Login Satu Pintu</a>
+                    {{-- Pengunjung (belum login): hanya Login & Registrasi Akun --}}
+                    <a href="{{ route('login') }}" class="px-4 py-2 border border-slate-300 text-slate-800 hover:bg-slate-50 rounded-lg transition">Login</a>
+                    <a href="{{ route('register') }}" class="px-4 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Register</a>
                 @endauth
             </nav>
         </div>
@@ -96,11 +104,51 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-blue-950 text-white py-8 mt-12 text-xs border-t border-blue-900">
-        <div class="max-w-7xl mx-auto px-4 text-center text-blue-300 space-y-2">
-            <p>&copy; {{ date('Y') }} Sistem Fasilitas Kampus Terpadu. Dibangun dengan Laravel 11/12, MySQL, & Tailwind CSS.</p>
+    <footer class="bg-[#0f1f3d] text-white py-8 text-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-blue-200">
+            <p class="font-bold text-white">Reservasi Kampus</p>
+            <p>&copy; {{ date('Y') }} Sistem Reservasi &amp; Pelaporan Fasilitas Kampus Terpadu.</p>
         </div>
     </footer>
+
+    <!-- Notifikasi Cookies & Session -->
+    <div x-data="{
+            show: false,
+            detail: false,
+            init() { this.show = !document.cookie.split('; ').some(c => c.startsWith('cookie_consent=')); },
+            accept() {
+                document.cookie = 'cookie_consent=1; max-age=' + (60*60*24*365) + '; path=/; SameSite=Lax';
+                this.show = false;
+            }
+         }"
+         x-show="show" x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-4"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-sm z-[60] bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 text-xs text-slate-600"
+         role="dialog" aria-label="Pemberitahuan cookies dan session">
+        <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="space-y-2">
+                <p class="font-bold text-slate-900 text-sm">Website ini menggunakan Cookies &amp; Session</p>
+                <p>Kami memakai <strong>cookies</strong> dan <strong>session</strong> agar login Anda tetap aman, pilihan slot pemesanan tidak hilang saat berpindah halaman, dan formulir terlindungi dari serangan.</p>
+
+                <div x-show="detail" x-cloak class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5">
+                    <p><strong class="text-slate-800">{{ config('session.cookie') }}</strong> &ndash; cookie session untuk status login &amp; pilihan slot.</p>
+                    <p><strong class="text-slate-800">XSRF-TOKEN</strong> &ndash; cookie keamanan (perlindungan CSRF).</p>
+                    <p><strong class="text-slate-800">cookie_consent</strong> &ndash; menyimpan pilihan Anda atas pemberitahuan ini.</p>
+                    <p class="text-slate-400">Session berakhir otomatis setelah {{ config('session.lifetime') }} menit tidak aktif.</p>
+                </div>
+
+                <div class="flex items-center gap-2 pt-1">
+                    <button @click="accept()" type="button" class="px-4 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white font-bold rounded-lg transition">Mengerti</button>
+                    <button @click="detail = !detail" type="button" class="px-3 py-2 text-blue-700 hover:underline font-semibold" x-text="detail ? 'Sembunyikan' : 'Lihat detail'"></button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- POP-UP MODAL: PERINGATAN / ERROR VALIDASI -->
     @if($errors->any())
@@ -204,5 +252,6 @@
     </div>
 
     @endauth
+    @stack('scripts')
 </body>
 </html>

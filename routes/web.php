@@ -10,8 +10,10 @@ use App\Http\Controllers\AdminController;
 // Landing Page & Ketersediaan Slot (Pengunjung & Semua Aktor)
 Route::get('/', [LandingController::class, 'index'])->name('landing');
 Route::get('/fasilitas/{id}/ketersediaan', [LandingController::class, 'checkAvailability'])->name('fasilitas.ketersediaan');
+// Klik "Pesan" di popup jadwal: simpan pilihan slot ke session, lalu arahkan ke login (Pengunjung) / dashboard (Pengguna)
+Route::post('/pesan/intent', [LandingController::class, 'bookingIntent'])->name('booking.intent');
 
-// Autentikasi Satu Pintu
+// Autentikasi (Login & Registrasi)
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
@@ -50,6 +52,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::post('/users/{id}/verify', [AdminController::class, 'verifyUser'])->name('users.verify');
     Route::post('/users/{id}/reject', [AdminController::class, 'rejectUser'])->name('users.reject');
+    Route::get('/users/{id}/ktm', [AdminController::class, 'showKtm'])->name('users.ktm');
     Route::post('/petugas', [AdminController::class, 'storePetugas'])->name('petugas.store');
     Route::post('/pengguna', [AdminController::class, 'storePenggunaDirect'])->name('pengguna.store');
     Route::post('/facilities', [AdminController::class, 'storeFacility'])->name('facilities.store');
