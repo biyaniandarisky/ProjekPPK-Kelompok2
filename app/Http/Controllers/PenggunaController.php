@@ -15,11 +15,30 @@ class PenggunaController extends Controller
     public function dashboard(Request $request)
     {
         $userId = auth()->id();
+        $selectedFacilityId = $request->query('facility_id');
 
-        // Pilihan slot dari halaman awal (disimpan di session saat masih Pengunjung)
-        $prefill = session()->pull('booking_intent');
-        $selectedFacilityId = $prefill['facility_id'] ?? $request->query('facility_id');
-        $openLaporan = $request->boolean('lapor');
+        // Tautan lama "?facility_id=" diarahkan ke halaman Formulir Reservasi
+        if ($selectedFacilityId) {
+            return redirect()->route('pengguna.reservasi.create', ['facility_id' => $selectedFacilityId]);
+        }
+
+        // Tombol "Laporkan Masalah" di landing page (?lapor=1) diarahkan ke Formulir Laporan
+        if ($request->boolean('lapor')) {
+            return redirect()->route('pengguna.laporan.create');
+        }
+
+        // Pilihan slot dari pop-up "Jadwal & Ketersediaan Slot" di landing page
+        // (disimpan LandingController::bookingIntent ke session) -> lanjut ke Formulir Reservasi
+        if ($request->session()->has('booking_intent')) {
+            $intent = $request->session()->pull('booking_intent');
+
+            return redirect()->route('pengguna.reservasi.create', [
+                'facility_id' => $intent['facility_id'] ?? null,
+                'tanggal'     => $intent['tanggal'] ?? null,
+                'start'       => $intent['start_time'] ?? null,
+                'end'         => $intent['end_time'] ?? null,
+            ]);
+        }
 
         // Ambil data reservasi & laporan pengguna
         $myReservations = Reservation::with('facility')->where('user_id', $userId)->latest()->get();
@@ -41,23 +60,104 @@ class PenggunaController extends Controller
             'myReports', 
             'facilities', 
             'stats', 
-            'selectedFacilityId',
-            'prefill',
-            'openLaporan'
+            'selectedFacilityId'
+        ));
+    }
+
+    /**
+     * Halaman Formulir Reservasi (lanjutan dari pop-up "Jadwal & Ketersediaan Slot")
+     */
+    public function createReservasi(Request $request)
+    {
+        $facilities = Facility::where('status', 'aktif')->orderBy('nama_fasilitas')->get();
+
+        $facility = null;
+        if ($request->filled('facility_id')) {
+            $facility = Facility::find($request->query('facility_id'));
+        }
+
+        if ($facility && $facility->status !== 'aktif') {
+            return redirect()->route('landing')
+                ->with('info', 'Fasilitas ' . $facility->nama_fasilitas . ' sedang tidak dapat dipesan.');
+        }
+
+        // Tanggal default: hari ini (atau kiriman dari pop-up ketersediaan slot)
+        $tanggal = $request->query('tanggal');
+        if (!$tanggal || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) || $tanggal < now()->toDateString()) {
+            $tanggal = now()->toDateString();
+        }
+
+        // Slot terpilih dari pop-up (opsional)
+        $startTime = $request->query('start');
+        $endTime   = $request->query('end');
+        if (!$startTime || !preg_match('/^(0[7-9]|1[0-9]):(00|30)$/', $startTime)) {
+            $startTime = null;
+        }
+        if (!$endTime || !preg_match('/^(0[7-9]|1[0-9]|20):(00|30)$/', $endTime)) {
+            $endTime = null;
+        }
+
+        return view('pengguna.reservasi.create', compact(
+            'facilities',
+            'facility',
+            'tanggal',
+            'startTime',
+            'endTime'
+        ));
+    }
+
+    /**
+     * Halaman Riwayat "Reservasi Saya" (dengan filter status)
+     */
+    public function reservasiIndex(Request $request)
+    {
+        $userId = auth()->id();
+
+        $myReservations = Reservation::with('facility')
+            ->where('user_id', $userId)
+            ->orderByDesc('tanggal')
+            ->orderByDesc('id')
+            ->get();
+
+        $counts = [
+            'all'       => $myReservations->count(),
+            'pending'   => $myReservations->where('status', 'pending')->count(),
+            'approved'  => $myReservations->where('status', 'approved')->count(),
+            'rejected'  => $myReservations->where('status', 'rejected')->count(),
+            'cancelled' => $myReservations->where('status', 'cancelled')->count(),
+        ];
+
+        $totalLaporan = Report::where('user_id', $userId)->count();
+
+        $activeStatus = $request->query('status', 'all');
+        if (!in_array($activeStatus, ['all', 'pending', 'approved', 'rejected', 'cancelled'])) {
+            $activeStatus = 'all';
+        }
+
+        return view('pengguna.reservasi.index', compact(
+            'myReservations',
+            'counts',
+            'totalLaporan',
+            'activeStatus'
         ));
     }
 
     public function storeReservasi(StoreReservationRequest $request, ReservationService $service)
     {
         $service->create($request->validated(), auth()->id());
-        return redirect()->route('pengguna.dashboard')->with('success', 'Pengajuan reservasi berhasil dikirim! Menunggu verifikasi petugas.');
+        return redirect()->route('pengguna.reservasi.index')->with('success', 'Pengajuan reservasi berhasil dikirim! Menunggu verifikasi petugas.');
     }
 
     public function cancelReservasi($id)
     {
         $reservation = Reservation::where('user_id', auth()->id())->findOrFail($id);
+
+        if (!in_array($reservation->status, ['pending', 'approved'])) {
+            return redirect()->route('pengguna.reservasi.index')->with('info', 'Reservasi ini sudah tidak dapat dibatalkan.');
+        }
+
         $reservation->update(['status' => 'cancelled']);
-        return redirect()->route('pengguna.dashboard')->with('info', 'Reservasi berhasil dibatalkan.');
+        return redirect()->route('pengguna.reservasi.index')->with('info', 'Reservasi berhasil dibatalkan.');
     }
 
     public function createLaporan(Request $request)

@@ -10,7 +10,7 @@ use App\Http\Controllers\AdminController;
 // Landing Page & Ketersediaan Slot (Pengunjung & Semua Aktor)
 Route::get('/', [LandingController::class, 'index'])->name('landing');
 Route::get('/fasilitas/{id}/ketersediaan', [LandingController::class, 'checkAvailability'])->name('fasilitas.ketersediaan');
-// Klik "Pesan" di popup jadwal: simpan pilihan slot ke session, lalu arahkan ke login (Pengunjung) / dashboard (Pengguna)
+// Klik "Pesan" di popup jadwal: simpan pilihan slot ke session, lalu arahkan ke login / dashboard
 Route::post('/pesan/intent', [LandingController::class, 'bookingIntent'])->name('booking.intent');
 
 // Autentikasi (Login & Registrasi)
@@ -26,11 +26,13 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 // Group: Pengguna (Mahasiswa, Dosen, Staf)
 Route::middleware(['auth', 'role:pengguna'])->prefix('pengguna')->name('pengguna.')->group(function () {
     Route::get('/dashboard', [PenggunaController::class, 'dashboard'])->name('dashboard');
+    Route::get('/reservasi', [PenggunaController::class, 'reservasiIndex'])->name('reservasi.index');
+    Route::get('/reservasi/buat', [PenggunaController::class, 'createReservasi'])->name('reservasi.create');
     Route::post('/reservasi', [PenggunaController::class, 'storeReservasi'])->name('reservasi.store');
     Route::post('/reservasi/{id}/batal', [PenggunaController::class, 'cancelReservasi'])->name('reservasi.cancel');
+    Route::get('/laporan', [PenggunaController::class, 'laporanIndex'])->name('laporan.index');
     Route::get('/laporan/buat', [PenggunaController::class, 'createLaporan'])->name('laporan.create');
     Route::post('/laporan', [PenggunaController::class, 'storeLaporan'])->name('laporan.store');
-    Route::get('/laporan', [PenggunaController::class, 'laporanIndex'])->name('laporan.index');
 });
 
 // Group: Petugas
