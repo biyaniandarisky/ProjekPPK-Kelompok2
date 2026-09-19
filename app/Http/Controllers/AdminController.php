@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\Facility;
 use App\Models\Reservation;
@@ -78,6 +79,14 @@ class AdminController extends Controller
     {
         User::findOrFail($id)->update(['status_verifikasi' => 'verified']);
         return back()->with('success', 'Akun berhasil diverifikasi.');
+    }
+
+    /** Menampilkan berkas KTM/KTP (disk private) khusus untuk admin. */
+    public function showKtm($id)
+    {
+        $user = User::findOrFail($id);
+        abort_unless($user->ktm_path && Storage::disk('local')->exists($user->ktm_path), 404, 'Berkas KTM/KTP tidak ditemukan.');
+        return Storage::disk('local')->response($user->ktm_path);
     }
 
     public function rejectUser($id)

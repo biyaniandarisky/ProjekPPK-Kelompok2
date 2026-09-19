@@ -10,8 +10,10 @@ use App\Http\Controllers\AdminController;
 // Landing Page & Ketersediaan Slot (Pengunjung & Semua Aktor)
 Route::get('/', [LandingController::class, 'index'])->name('landing');
 Route::get('/fasilitas/{id}/ketersediaan', [LandingController::class, 'checkAvailability'])->name('fasilitas.ketersediaan');
+// Klik "Pesan" di popup jadwal: simpan pilihan slot ke session, lalu arahkan ke login (Pengunjung) / dashboard (Pengguna)
+Route::post('/pesan/intent', [LandingController::class, 'bookingIntent'])->name('booking.intent');
 
-// Autentikasi Satu Pintu
+// Autentikasi (Login & Registrasi)
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
@@ -26,12 +28,17 @@ Route::middleware(['auth', 'role:pengguna'])->prefix('pengguna')->name('pengguna
     Route::get('/dashboard', [PenggunaController::class, 'dashboard'])->name('dashboard');
     Route::post('/reservasi', [PenggunaController::class, 'storeReservasi'])->name('reservasi.store');
     Route::post('/reservasi/{id}/batal', [PenggunaController::class, 'cancelReservasi'])->name('reservasi.cancel');
+    Route::get('/laporan/buat', [PenggunaController::class, 'createLaporan'])->name('laporan.create');
     Route::post('/laporan', [PenggunaController::class, 'storeLaporan'])->name('laporan.store');
+    Route::get('/laporan', [PenggunaController::class, 'laporanIndex'])->name('laporan.index');
 });
 
 // Group: Petugas
 Route::middleware(['auth', 'role:petugas'])->prefix('petugas')->name('petugas.')->group(function () {
     Route::get('/dashboard', [PetugasController::class, 'dashboard'])->name('dashboard');
+    Route::get('/reservasi', [PetugasController::class, 'reservasiIndex'])->name('reservasi.index');
+    Route::get('/laporan', [PetugasController::class, 'laporanIndex'])->name('laporan.index');
+    Route::get('/fasilitas', [PetugasController::class, 'fasilitasIndex'])->name('fasilitas.index');
     Route::post('/reservasi/{id}/approve', [PetugasController::class, 'approveReservasi'])->name('reservasi.approve');
     Route::post('/reservasi/{id}/reject', [PetugasController::class, 'rejectReservasi'])->name('reservasi.reject');
     Route::post('/reservasi/{id}/emergency-cancel', [PetugasController::class, 'emergencyCancel'])->name('reservasi.emergency_cancel');
@@ -52,6 +59,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/users/{id}/reject', [AdminController::class, 'rejectUser'])->name('users.reject');
     
     // Req 16: Kelola Fasilitas
+    Route::get('/users/{id}/ktm', [AdminController::class, 'showKtm'])->name('users.ktm');
+    Route::post('/petugas', [AdminController::class, 'storePetugas'])->name('petugas.store');
+    Route::post('/pengguna', [AdminController::class, 'storePenggunaDirect'])->name('pengguna.store');
     Route::post('/facilities', [AdminController::class, 'storeFacility'])->name('facilities.store');
     Route::put('/facilities/{id}', [AdminController::class, 'updateFacility'])->name('facilities.update');
     Route::post('/facilities/{id}/toggle', [AdminController::class, 'toggleFacilityStatus'])->name('facilities.toggle');

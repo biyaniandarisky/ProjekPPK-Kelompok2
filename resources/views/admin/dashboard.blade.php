@@ -171,6 +171,44 @@
                             <td class="py-3 px-4 text-slate-700 font-bold">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
                                     {{ $f->reservations_count ?? 0 }} kali
+    <!-- TAB 2: VERIFIKASI AKUN PENGGUNA -->
+    <div x-show="activeTab === 'verifikasi'" x-cloak class="bg-white rounded-2xl p-6 shadow border border-slate-100">
+        <h2 class="font-bold text-slate-800 mb-4 text-sm">Daftar Verifikasi Akun Pengguna</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="text-left text-slate-400 border-b uppercase text-[10px]">
+                        <th class="py-2 pr-4">Nama</th>
+                        <th class="py-2 pr-4">NIM / NIP</th>
+                        <th class="py-2 pr-4">Email</th>
+                        <th class="py-2 pr-4">No. HP</th>
+                        <th class="py-2 pr-4">KTM / KTP</th>
+                        <th class="py-2 pr-4">Role</th>
+                        <th class="py-2 pr-4">Status</th>
+                        <th class="py-2 pr-4">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @forelse($users as $u)
+                        <tr>
+                            <td class="py-3 pr-4 font-bold text-slate-800">{{ $u->name }}</td>
+                            <td class="py-3 pr-4 text-slate-600">{{ $u->nim_nip ?? '-' }}</td>
+                            <td class="py-3 pr-4 text-slate-600">{{ $u->email }}</td>
+                            <td class="py-3 pr-4 text-slate-600">{{ $u->no_hp ?? '-' }}</td>
+                            <td class="py-3 pr-4">
+                                @if($u->ktm_path)
+                                    <a href="{{ route('admin.users.ktm', $u->id) }}" target="_blank" rel="noopener" class="text-blue-700 font-bold hover:underline">Lihat berkas</a>
+                                @else
+                                    <span class="text-slate-400">-</span>
+                                @endif
+                            </td>
+                            <td class="py-3 pr-4 text-slate-600">{{ ucfirst($u->role) }}</td>
+                            <td class="py-3 pr-4">
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold
+                                    @if($u->status_verifikasi == 'verified') bg-emerald-100 text-emerald-700
+                                    @elseif($u->status_verifikasi == 'rejected') bg-rose-100 text-rose-700
+                                    @else bg-amber-100 text-amber-700 @endif">
+                                    {{ ucfirst($u->status_verifikasi) }}
                                 </span>
                             </td>
                             <td class="py-3 px-4 text-rose-600 font-bold">
@@ -222,6 +260,30 @@
                             </td>
                         </tr>
                         @empty
+                    @empty
+                        <tr><td colspan="8" class="py-6 text-center text-slate-400">Belum ada pengguna terdaftar.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TAB 3: SEMUA RESERVASI -->
+    <div x-show="activeTab === 'reservasi'" x-cloak class="bg-white rounded-2xl p-6 shadow border border-slate-100">
+        <h2 class="font-bold text-slate-800 mb-4 text-sm">Rekapitulasi Semua Reservasi Fasilitas</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="text-left text-slate-400 border-b uppercase text-[10px]">
+                        <th class="py-2 pr-4">Pemohon</th>
+                        <th class="py-2 pr-4">Fasilitas</th>
+                        <th class="py-2 pr-4">Tanggal</th>
+                        <th class="py-2 pr-4">Jam</th>
+                        <th class="py-2 pr-4">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @forelse($reservations as $r)
                         <tr>
                             <td colspan="4" class="py-8 text-center text-slate-400">
                                 <div class="flex flex-col items-center justify-center gap-1">

@@ -15,7 +15,11 @@ class PenggunaController extends Controller
     public function dashboard(Request $request)
     {
         $userId = auth()->id();
-        $selectedFacilityId = $request->query('facility_id');
+
+        // Pilihan slot dari halaman awal (disimpan di session saat masih Pengunjung)
+        $prefill = session()->pull('booking_intent');
+        $selectedFacilityId = $prefill['facility_id'] ?? $request->query('facility_id');
+        $openLaporan = $request->boolean('lapor');
 
         // Ambil data reservasi & laporan pengguna
         $myReservations = Reservation::with('facility')->where('user_id', $userId)->latest()->get();
@@ -37,7 +41,9 @@ class PenggunaController extends Controller
             'myReports', 
             'facilities', 
             'stats', 
-            'selectedFacilityId'
+            'selectedFacilityId',
+            'prefill',
+            'openLaporan'
         ));
     }
 
@@ -52,6 +58,24 @@ class PenggunaController extends Controller
         $reservation = Reservation::where('user_id', auth()->id())->findOrFail($id);
         $reservation->update(['status' => 'cancelled']);
         return redirect()->route('pengguna.dashboard')->with('info', 'Reservasi berhasil dibatalkan.');
+    }
+
+    public function createLaporan(Request $request)
+    {
+        $facilities = Facility::all();
+        $selectedFacilityId = $request->query('facility_id');
+
+        return view('pengguna.laporan.create', compact('facilities', 'selectedFacilityId'));
+    }
+
+    public function laporanIndex()
+    {
+        $myReports = Report::with('facility')
+            ->where('user_id', auth()->id())
+            ->latest()
+            ->get();
+
+        return view('pengguna.laporan.index', compact('myReports'));
     }
 
     public function storeLaporan(StoreReportRequest $request)

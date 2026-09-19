@@ -35,6 +35,7 @@ class DatabaseSeeder extends Seeder
         $mhs1 = User::create([
             'name' => 'Ahmad Fauzi (Mahasiswa TI)',
             'email' => 'mahasiswa1@kampus.ac.id',
+            'nim_nip' => '2021110001',
             'password' => Hash::make('password'),
             'role' => 'pengguna',
             'status_verifikasi' => 'verified',
@@ -43,6 +44,7 @@ class DatabaseSeeder extends Seeder
         $mhs2 = User::create([
             'name' => 'Rina Sasmita (Mahasiswi SI)',
             'email' => 'mahasiswa2@kampus.ac.id',
+            'nim_nip' => '2021110002',
             'password' => Hash::make('password'),
             'role' => 'pengguna',
             'status_verifikasi' => 'verified',
@@ -52,6 +54,7 @@ class DatabaseSeeder extends Seeder
         User::create([
             'name' => 'Bambang Sudarsono (Mahasiswa Baru)',
             'email' => 'mahasiswa4@kampus.ac.id',
+            'nim_nip' => '2024110004',
             'password' => Hash::make('password'),
             'role' => 'pengguna',
             'status_verifikasi' => 'pending',
