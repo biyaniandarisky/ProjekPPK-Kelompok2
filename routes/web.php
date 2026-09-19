@@ -43,10 +43,19 @@ Route::middleware(['auth', 'role:petugas'])->prefix('petugas')->name('petugas.')
 // Group: Admin
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+    
+    // Req 14 & 15: Pendaftaran Akun Direct (Petugas & Pengguna)
+    Route::post('/register-user', [AdminController::class, 'storeUserByAdmin'])->name('users.store');
+    
+    // Req 15: Verifikasi Pengguna
     Route::post('/users/{id}/verify', [AdminController::class, 'verifyUser'])->name('users.verify');
     Route::post('/users/{id}/reject', [AdminController::class, 'rejectUser'])->name('users.reject');
-    Route::post('/petugas', [AdminController::class, 'storePetugas'])->name('petugas.store');
-    Route::post('/pengguna', [AdminController::class, 'storePenggunaDirect'])->name('pengguna.store');
+    
+    // Req 16: Kelola Fasilitas
     Route::post('/facilities', [AdminController::class, 'storeFacility'])->name('facilities.store');
-    Route::get('/rekap/okupansi/export', [AdminController::class, 'exportOkupansi'])->name('rekap.okupansi');
+    Route::put('/facilities/{id}', [AdminController::class, 'updateFacility'])->name('facilities.update');
+    Route::post('/facilities/{id}/toggle', [AdminController::class, 'toggleFacilityStatus'])->name('facilities.toggle');
+    
+    // Req 17: Export Rekap Full Data (CSV/Excel/PDF)
+    Route::get('/rekap/export/{format}', [AdminController::class, 'exportFullData'])->name('rekap.export');
 });
