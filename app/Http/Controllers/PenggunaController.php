@@ -54,6 +54,24 @@ class PenggunaController extends Controller
         return redirect()->route('pengguna.dashboard')->with('info', 'Reservasi berhasil dibatalkan.');
     }
 
+    public function createLaporan(Request $request)
+    {
+        $facilities = Facility::all();
+        $selectedFacilityId = $request->query('facility_id');
+
+        return view('pengguna.laporan.create', compact('facilities', 'selectedFacilityId'));
+    }
+
+    public function laporanIndex()
+    {
+        $myReports = Report::with('facility')
+            ->where('user_id', auth()->id())
+            ->latest()
+            ->get();
+
+        return view('pengguna.laporan.index', compact('myReports'));
+    }
+
     public function storeLaporan(StoreReportRequest $request)
     {
         $data = $request->validated();
