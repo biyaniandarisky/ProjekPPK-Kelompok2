@@ -34,6 +34,9 @@ Route::middleware(['auth', 'role:pengguna'])->prefix('pengguna')->name('pengguna
 // Group: Petugas
 Route::middleware(['auth', 'role:petugas'])->prefix('petugas')->name('petugas.')->group(function () {
     Route::get('/dashboard', [PetugasController::class, 'dashboard'])->name('dashboard');
+    Route::get('/reservasi', [PetugasController::class, 'reservasiIndex'])->name('reservasi.index');
+    Route::get('/laporan', [PetugasController::class, 'laporanIndex'])->name('laporan.index');
+    Route::get('/fasilitas', [PetugasController::class, 'fasilitasIndex'])->name('fasilitas.index');
     Route::post('/reservasi/{id}/approve', [PetugasController::class, 'approveReservasi'])->name('reservasi.approve');
     Route::post('/reservasi/{id}/reject', [PetugasController::class, 'rejectReservasi'])->name('reservasi.reject');
     Route::post('/reservasi/{id}/emergency-cancel', [PetugasController::class, 'emergencyCancel'])->name('reservasi.emergency_cancel');
