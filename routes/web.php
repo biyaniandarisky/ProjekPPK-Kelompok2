@@ -26,7 +26,9 @@ Route::middleware(['auth', 'role:pengguna'])->prefix('pengguna')->name('pengguna
     Route::get('/dashboard', [PenggunaController::class, 'dashboard'])->name('dashboard');
     Route::post('/reservasi', [PenggunaController::class, 'storeReservasi'])->name('reservasi.store');
     Route::post('/reservasi/{id}/batal', [PenggunaController::class, 'cancelReservasi'])->name('reservasi.cancel');
+    Route::get('/laporan/buat', [PenggunaController::class, 'createLaporan'])->name('laporan.create');
     Route::post('/laporan', [PenggunaController::class, 'storeLaporan'])->name('laporan.store');
+    Route::get('/laporan', [PenggunaController::class, 'laporanIndex'])->name('laporan.index');
 });
 
 // Group: Petugas
