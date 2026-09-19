@@ -4,7 +4,7 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8" 
     x-data="{ 
         showReservasiModal: {{ (isset($selectedFacilityId) && $selectedFacilityId) ? 'true' : 'false' }}, 
-        showLaporanModal: false, 
+        showLaporanModal: {{ !empty($openLaporan) ? 'true' : 'false' }}, 
         showRiwayatReservasi: false, 
         showRiwayatLaporan: false,
         closeModals() {
@@ -192,15 +192,15 @@
                 <div class="grid grid-cols-3 gap-3">
                     <div>
                         <label class="block font-bold text-slate-600 mb-1">Tanggal</label>
-                        <input type="date" name="tanggal" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" required>
+                        <input type="date" name="tanggal" value="{{ old('tanggal', $prefill['tanggal'] ?? '') }}" min="{{ now()->toDateString() }}" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" required>
                     </div>
                     <div>
                         <label class="block font-bold text-slate-600 mb-1">Jam Mulai</label>
-                        <input type="time" name="start_time" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" required>
+                        <input type="time" name="start_time" step="1800" value="{{ old('start_time', $prefill['start_time'] ?? '') }}" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" required>
                     </div>
                     <div>
                         <label class="block font-bold text-slate-600 mb-1">Jam Selesai</label>
-                        <input type="time" name="end_time" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" required>
+                        <input type="time" name="end_time" step="1800" value="{{ old('end_time', $prefill['end_time'] ?? '') }}" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900" required>
                     </div>
                 </div>
                 <div>

@@ -91,7 +91,10 @@
                 <thead>
                     <tr class="text-left text-slate-400 border-b uppercase text-[10px]">
                         <th class="py-2 pr-4">Nama</th>
+                        <th class="py-2 pr-4">NIM / NIP</th>
                         <th class="py-2 pr-4">Email</th>
+                        <th class="py-2 pr-4">No. HP</th>
+                        <th class="py-2 pr-4">KTM / KTP</th>
                         <th class="py-2 pr-4">Role</th>
                         <th class="py-2 pr-4">Status</th>
                         <th class="py-2 pr-4">Aksi</th>
@@ -101,7 +104,16 @@
                     @forelse($users as $u)
                         <tr>
                             <td class="py-3 pr-4 font-bold text-slate-800">{{ $u->name }}</td>
+                            <td class="py-3 pr-4 text-slate-600">{{ $u->nim_nip ?? '-' }}</td>
                             <td class="py-3 pr-4 text-slate-600">{{ $u->email }}</td>
+                            <td class="py-3 pr-4 text-slate-600">{{ $u->no_hp ?? '-' }}</td>
+                            <td class="py-3 pr-4">
+                                @if($u->ktm_path)
+                                    <a href="{{ route('admin.users.ktm', $u->id) }}" target="_blank" rel="noopener" class="text-blue-700 font-bold hover:underline">Lihat berkas</a>
+                                @else
+                                    <span class="text-slate-400">-</span>
+                                @endif
+                            </td>
                             <td class="py-3 pr-4 text-slate-600">{{ ucfirst($u->role) }}</td>
                             <td class="py-3 pr-4">
                                 <span class="px-2.5 py-1 rounded-full text-[10px] font-bold
@@ -127,7 +139,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="py-6 text-center text-slate-400">Belum ada pengguna terdaftar.</td></tr>
+                        <tr><td colspan="8" class="py-6 text-center text-slate-400">Belum ada pengguna terdaftar.</td></tr>
                     @endforelse
                 </tbody>
             </table>

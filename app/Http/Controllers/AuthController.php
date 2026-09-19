@@ -9,9 +9,16 @@ use App\Models\User;
 
 class AuthController extends Controller
 {
+    /** Halaman Login (tab "Login" aktif). */
     public function showLoginForm()
     {
-        return view('auth.login');
+        return view('auth.index', ['tab' => 'login']);
+    }
+
+    /** Halaman Registrasi (tab "Registrasi Mandiri" aktif). */
+    public function showRegisterForm()
+    {
+        return view('auth.index', ['tab' => 'register']);
     }
 
     public function login(Request $request)
@@ -26,22 +33,32 @@ class AuthController extends Controller
         ]);
 
         if (Auth::attempt($credentials)) {
-            $request->session()->regenerate();
             $user = Auth::user();
 
-            // Verifikasi status untuk pengguna
+            // Pengguna yang belum diverifikasi admin TIDAK boleh masuk
             if ($user->role === 'pengguna') {
                 if ($user->status_verifikasi === 'pending') {
                     Auth::logout();
-                    return back()->withErrors(['email' => 'Akun Anda belum diverifikasi admin']);
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                    return redirect()->route('login')
+                        ->withInput($request->only('email'))
+                        ->withErrors(['email' => 'Akun Anda sedang diverifikasi oleh admin. Anda belum dapat login sampai akun disetujui.']);
                 }
                 if ($user->status_verifikasi === 'rejected') {
                     Auth::logout();
-                    return back()->withErrors(['email' => 'Akun Anda ditolak']);
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                    return redirect()->route('login')
+                        ->withInput($request->only('email'))
+                        ->withErrors(['email' => 'Verifikasi akun Anda ditolak. Silakan hubungi admin kampus.']);
                 }
             }
 
-            // Redirect otomatis sesuai peran
+            // Session baru setelah login (mencegah session fixation).
+            // Pilihan slot dari Pengunjung (booking_intent) ikut terbawa.
+            $request->session()->regenerate();
+
             return match ($user->role) {
                 'admin'    => redirect()->route('admin.dashboard'),
                 'petugas'  => redirect()->route('petugas.dashboard'),
@@ -50,39 +67,53 @@ class AuthController extends Controller
             };
         }
 
-        return back()->withErrors([
+        return back()->withInput($request->only('email'))->withErrors([
             'email' => 'Kombinasi email atau password salah.',
         ]);
-    }
-
-    public function showRegisterForm()
-    {
-        return view('auth.register');
     }
 
     public function register(Request $request)
     {
         $validated = $request->validate([
             'name'     => 'required|string|max:100',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|min:6',
+            'nim_nip'  => 'required|string|max:30|unique:users,nim_nip',
+            'email'    => 'required|email|max:255|unique:users,email',
+            'no_hp'    => ['nullable', 'regex:/^(\+62|62|0)8[0-9]{7,13}$/'],
+            'password' => 'required|min:8|confirmed',
+            'ktm'      => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ], [
-            'name.required'     => 'Nama lengkap wajib diisi.',
-            'email.required'    => 'Email institusi wajib diisi.',
-            'email.unique'      => 'Email ini sudah terdaftar di sistem.',
-            'password.required' => 'Password wajib diisi.',
-            'password.min'      => 'Password minimal 6 karakter.',
+            'name.required'      => 'Nama lengkap wajib diisi.',
+            'nim_nip.required'   => 'NIM / NIP wajib diisi.',
+            'nim_nip.unique'     => 'NIM / NIP ini sudah terdaftar di sistem.',
+            'email.required'     => 'Email wajib diisi.',
+            'email.email'        => 'Format email tidak valid.',
+            'email.unique'       => 'Email ini sudah terdaftar di sistem.',
+            'no_hp.regex'        => 'Format No. HP tidak valid (contoh: 081234567890).',
+            'password.required'  => 'Password wajib diisi.',
+            'password.min'       => 'Password minimal 8 karakter.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok dengan password.',
+            'ktm.mimes'          => 'Berkas KTM / KTP harus berformat JPG, PNG, atau PDF.',
+            'ktm.max'            => 'Ukuran berkas KTM / KTP maksimal 2 MB.',
         ]);
+
+        // KTM/KTP disimpan di disk PRIVATE (bukan public) karena berisi data pribadi
+        $ktmPath = $request->hasFile('ktm')
+            ? $request->file('ktm')->store('ktm', 'local')
+            : null;
 
         User::create([
             'name'              => $validated['name'],
+            'nim_nip'           => $validated['nim_nip'],
             'email'             => $validated['email'],
+            'no_hp'             => $validated['no_hp'] ?? null,
+            'ktm_path'          => $ktmPath,
             'password'          => Hash::make($validated['password']),
             'role'              => 'pengguna',
-            'status_verifikasi' => 'pending', // Menunggu verifikasi admin
+            'status_verifikasi' => 'pending', // Menunggu verifikasi admin; belum bisa login
         ]);
 
-        return redirect()->route('login')->with('success', 'Registrasi mandiri berhasil! Akun Anda sedang menunggu verifikasi oleh Admin kampus.');
+        // Tidak auto-login. Arahkan ke halaman Login + tampilkan notifikasi verifikasi.
+        return redirect()->route('login')->with('pending_notice', true);
     }
 
     public function logout(Request $request)
