@@ -31,21 +31,6 @@
             </p>
         </div>
 
-        {{-- Tab --}}
-        <div class="mt-6 grid grid-cols-2 border-b-2 border-slate-100 text-sm font-bold" role="tablist">
-            <button type="button" role="tab" @click="switchTab('login')"
-                    :aria-selected="tab === 'login'"
-                    class="pb-2.5 -mb-0.5 border-b-2 transition"
-                    :class="tab === 'login' ? 'border-[#1e3a8a] text-[#1e3a8a]' : 'border-transparent text-slate-400 hover:text-slate-600'">
-                Login
-            </button>
-            <button type="button" role="tab" @click="switchTab('register')"
-                    :aria-selected="tab === 'register'"
-                    class="pb-2.5 -mb-0.5 border-b-2 transition"
-                    :class="tab === 'register' ? 'border-[#1e3a8a] text-[#1e3a8a]' : 'border-transparent text-slate-400 hover:text-slate-600'">
-                Registrasi Mandiri
-            </button>
-        </div>
 
         {{-- ============ PANEL LOGIN ============ --}}
         <form x-show="tab === 'login'" @if($tab !== 'login') x-cloak @endif
