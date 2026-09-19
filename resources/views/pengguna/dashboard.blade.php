@@ -3,7 +3,7 @@
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8" 
     x-data="{ 
-        showReservasiModal: {{ (isset($selectedFacilityId) && $selectedFacilityId) ? 'true' : 'false' }}, 
+        showReservasiModal: {{ (isset($selectedFacilityId) && $selectedFacilityId) ? 'true' : 'false' }},
         showLaporanModal: {{ !empty($openLaporan) ? 'true' : 'false' }}, 
         showRiwayatReservasi: false, 
         closeModals() {
