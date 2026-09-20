@@ -1,263 +1,182 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Reservasi Kampus')</title>
+@extends('layouts.app')
 
-    <!-- Font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-                    },
-                    colors: {
-                        navy: '#1e3a8a',
-                        brand: '#10b981',
-                    }
-                }
-            }
+@section('title', $tab === 'register' ? 'Registrasi Akun — Reservasi Kampus' : 'Login — Reservasi Kampus')
+
+@section('content')
+@php
+    $inputBase = 'w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900';
+@endphp
+
+<div class="flex items-start justify-center px-4 py-10 sm:py-14"
+     x-data="{
+        tab: '{{ $tab }}',
+        lupa: false,
+        pending: {{ session('pending_notice') ? 'true' : 'false' }},
+        switchTab(t) {
+            this.tab = t;
+            history.replaceState(null, '', t === 'login' ? '{{ route('login', [], false) }}' : '{{ route('register', [], false) }}');
+            document.title = t === 'login' ? 'Login — Reservasi Kampus' : 'Registrasi Akun — Reservasi Kampus';
         }
-    </script>
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+     }">
 
-    <style>
-        [x-cloak] { display: none !important; }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-900 flex flex-col min-h-screen font-sans antialiased" 
-      x-data="{ 
-          showModalReservasi: false, 
-          showErrorModal: {{ $errors->any() ? 'true' : 'false' }}
-      }">
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 px-6 sm:px-8 py-8">
 
-    <!-- Navbar -->
-    <header class="bg-white text-slate-900 border-b border-slate-200 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-            <!-- Bagian Kiri: Tombol Back (jika di login/register) & Logo -->
-            <div class="flex items-center gap-3">
-                @if(request()->routeIs('login') || request()->routeIs('register'))
-                    <a href="{{ route('landing') }}" class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition" title="Kembali ke Beranda">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                        </svg>
-                    </a>
-                @endif
-                <a href="{{ route('landing') }}" class="font-extrabold text-sm sm:text-base tracking-tight text-slate-900">Reservasi Kampus</a>
-            </div>
-
-            <!-- Bagian Kanan: Menu Navigasi / Tombol Auth -->
-            <nav class="flex items-center gap-2 text-xs font-bold">
-                @auth
-                    @if(auth()->user()->role === 'pengguna' || (!auth()->user()->isAdmin() && !auth()->user()->isPetugas()))
-                        <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Cari Fasilitas</a>
-                        <button @click="showModalReservasi = true" type="button" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
-                            Reservasi Saya
-                        </button>
-                        <a href="{{ route('pengguna.laporan.index') }}" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
-                            Laporan Saya
-                        </a>
-                        <a href="{{ route('pengguna.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">
-                            Panel Mahasiswa
-                        </a>
-                    @elseif(auth()->user()->isAdmin())
-                        <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Beranda</a>
-                        <a href="{{ route('admin.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Panel Admin</a>
-                    @elseif(auth()->user()->isPetugas())
-                        <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Beranda</a>
-                        <a href="{{ route('petugas.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Panel Petugas</a>
-                    @endif
-
-                    <form action="{{ route('logout') }}" method="POST" class="inline">
-                        @csrf
-                        <button type="submit" class="px-3.5 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-lg transition">Keluar</button>
-                    </form>
-                @else
-                    {{-- Pengunjung (belum login): hanya Login & Registrasi Akun --}}
-                    <a href="{{ route('login') }}" class="px-4 py-2 border border-slate-300 text-slate-800 hover:bg-slate-50 rounded-lg transition">Login</a>
-                    <a href="{{ route('register') }}" class="px-4 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Register</a>
-                @endauth
-            </nav>
+        {{-- Header --}}
+        <div class="text-center">
+            <h2 class="mt-3 text-2xl font-extrabold text-slate-900" x-text="tab === 'login' ? 'Login' : 'Registrasi Akun'">{{ $tab === 'register' ? 'Registrasi Akun' : 'Login' }}</h2>
+            <p class="mt-1 text-[11px] text-slate-500"
+               x-text="tab === 'login' ? 'Sistem Reservasi & Pelaporan Fasilitas Kampus Terpadu' : 'Isi data diri Anda dengan benar'">
+                {{ $tab === 'register' ? 'Isi data diri Anda dengan benar' : 'Sistem Reservasi & Pelaporan Fasilitas Kampus Terpadu' }}
+            </p>
         </div>
-    </header>
 
-    <!-- Flash Alerts (Sukses & Info saja) -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
-        @if(session('success'))
-            <div class="p-4 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold mb-3">
-                {{ session('success') }}
+        {{-- Tab --}}
+        <div class="mt-6 grid grid-cols-2 border-b-2 border-slate-100 text-sm font-bold" role="tablist">
+            <button type="button" role="tab" @click="switchTab('login')"
+                    :aria-selected="tab === 'login'"
+                    class="pb-2.5 -mb-0.5 border-b-2 transition"
+                    :class="tab === 'login' ? 'border-[#1e3a8a] text-[#1e3a8a]' : 'border-transparent text-slate-400 hover:text-slate-600'">
+                Login
+            </button>
+            <button type="button" role="tab" @click="switchTab('register')"
+                    :aria-selected="tab === 'register'"
+                    class="pb-2.5 -mb-0.5 border-b-2 transition"
+                    :class="tab === 'register' ? 'border-[#1e3a8a] text-[#1e3a8a]' : 'border-transparent text-slate-400 hover:text-slate-600'">
+                Registrasi Mandiri
+            </button>
+        </div>
+
+        {{-- ============ PANEL LOGIN ============ --}}
+        <form x-show="tab === 'login'" @if($tab !== 'login') x-cloak @endif
+              action="{{ route('login') }}" method="POST" class="mt-6 space-y-4">
+            @csrf
+
+            <div>
+                <label for="login-email" class="block text-xs font-bold text-slate-800 mb-1.5">Alamat Email Kampus</label>
+                <div class="relative">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 7l9 6 9-6"/></svg>
+                    <input id="login-email" type="email" name="email" required autocomplete="email"
+                           value="{{ $tab === 'login' ? old('email') : '' }}" placeholder="nama@kampus.ac.id"
+                           class="{{ $inputBase }} pl-9">
+                </div>
             </div>
-        @endif
-        @if(session('info'))
-            <div class="p-4 bg-blue-100 border border-blue-300 text-blue-900 rounded-xl text-xs font-bold mb-3">
-                {{ session('info') }}
+
+            <div>
+                <div class="flex items-center justify-between mb-1.5">
+                    <label for="login-password" class="block text-xs font-bold text-slate-800">Kata Sandi (Password)</label>
+                    <button type="button" @click="lupa = !lupa" class="text-[11px] font-bold text-blue-700 hover:underline">Lupa Password?</button>
+                </div>
+                <div class="relative">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 11V8a4 4 0 118 0v3"/></svg>
+                    <input id="login-password" type="password" name="password" required autocomplete="current-password"
+                           placeholder="Minimal 6 karakter" class="{{ $inputBase }} pl-9">
+                </div>
+                <p x-show="lupa" x-cloak class="mt-2 text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                    Untuk mereset password, silakan hubungi admin atau petugas kampus.
+                </p>
             </div>
-        @endif
+
+            <button type="submit"
+                    class="w-full h-12 bg-[#1e3a8a] hover:bg-[#172f70] text-white text-sm font-bold rounded-xl shadow-md transition">
+                Login ke Sistem
+            </button>
+
+            <p class="text-center text-[11px] text-slate-500 pt-1 leading-relaxed">
+                Belum punya akun?
+                <button type="button" @click="switchTab('register')" class="font-extrabold text-[#1e3a8a] hover:underline">Daftar di sini</button>.
+                Akses untuk Mahasiswa, Dosen, Staf, dan Petugas Kampus.
+            </p>
+        </form>
+
+        {{-- ============ PANEL REGISTRASI ============ --}}
+        <form x-show="tab === 'register'" @if($tab !== 'register') x-cloak @endif
+              action="{{ route('register') }}" method="POST" enctype="multipart/form-data" class="mt-6 space-y-3.5">
+            @csrf
+
+            <div>
+                <label for="reg-name" class="block text-xs font-bold text-slate-700 mb-1.5">Nama Lengkap <span class="text-rose-500">*</span></label>
+                <input id="reg-name" type="text" name="name" required maxlength="100" autocomplete="name"
+                       value="{{ old('name') }}" placeholder="Nama lengkap" class="{{ $inputBase }}">
+                @error('name')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label for="reg-nim" class="block text-xs font-bold text-slate-700 mb-1.5">NIM / NIP <span class="text-rose-500">*</span></label>
+                <input id="reg-nim" type="text" name="nim_nip" required maxlength="30" inputmode="numeric"
+                       value="{{ old('nim_nip') }}" placeholder="Nomor identitas" class="{{ $inputBase }}">
+                @error('nim_nip')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label for="reg-email" class="block text-xs font-bold text-slate-700 mb-1.5">Email <span class="text-rose-500">*</span></label>
+                <input id="reg-email" type="email" name="email" required autocomplete="email"
+                       value="{{ $tab === 'register' ? old('email') : '' }}" placeholder="email@kampus.ac.id" class="{{ $inputBase }}">
+                @error('email')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label for="reg-hp" class="block text-xs font-bold text-slate-700 mb-1.5">No. HP</label>
+                <input id="reg-hp" type="tel" name="no_hp" autocomplete="tel" inputmode="tel"
+                       value="{{ old('no_hp') }}" placeholder="08xxxxxxxxxx" class="{{ $inputBase }}">
+                @error('no_hp')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label for="reg-pass" class="block text-xs font-bold text-slate-700 mb-1.5">Password <span class="text-rose-500">*</span></label>
+                <input id="reg-pass" type="password" name="password" required minlength="8" autocomplete="new-password"
+                       placeholder="min. 8 karakter" class="{{ $inputBase }}">
+                @error('password')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label for="reg-pass2" class="block text-xs font-bold text-slate-700 mb-1.5">Konfirmasi Password <span class="text-rose-500">*</span></label>
+                <input id="reg-pass2" type="password" name="password_confirmation" required minlength="8" autocomplete="new-password"
+                       placeholder="ulangi password" class="{{ $inputBase }}">
+            </div>
+
+            <div x-data="{ drag: false, fileName: '' }">
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">Upload KTM / KTP</label>
+                <label @dragover.prevent="drag = true" @dragleave.prevent="drag = false"
+                       @drop.prevent="drag = false; $refs.file.files = $event.dataTransfer.files; fileName = $refs.file.files[0] ? $refs.file.files[0].name : ''"
+                       class="flex items-center justify-center gap-2 h-20 px-3 text-center rounded-lg border border-dashed cursor-pointer text-[12px] transition"
+                       :class="drag ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-300 bg-slate-50 text-slate-500 hover:bg-slate-100'">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8l-8.6 8.6a5.5 5.5 0 01-7.8-7.8l9-9a3.7 3.7 0 015.2 5.2l-9 9a1.8 1.8 0 01-2.6-2.6l8.4-8.4"/></svg>
+                    <span x-show="!fileName">Klik untuk upload atau drag &amp; drop</span>
+                    <span x-show="fileName" x-cloak class="font-semibold text-slate-700 break-all" x-text="fileName"></span>
+                    <input type="file" name="ktm" x-ref="file" class="hidden" accept=".jpg,.jpeg,.png,.pdf"
+                           @change="fileName = $event.target.files[0] ? $event.target.files[0].name : ''">
+                </label>
+                <p class="mt-1 text-[10px] text-slate-400">Format JPG, PNG, atau PDF. Maksimal 2 MB. Digunakan admin untuk memverifikasi identitas Anda.</p>
+                @error('ktm')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+            </div>
+
+            <button type="submit"
+                    class="w-full h-11 bg-[#0f2540] hover:bg-[#0b1c31] text-white text-sm font-bold rounded-lg shadow-md transition">
+                Daftar
+            </button>
+
+            <p class="text-center text-[11px] text-slate-500">
+                Sudah punya akun?
+                <button type="button" @click="switchTab('login')" class="font-extrabold text-blue-700 hover:underline">Masuk</button>
+            </p>
+        </form>
     </div>
 
-    <!-- Main Content -->
-    <main class="flex-1">
-        @yield('content')
-    </main>
-
-    <!-- Footer -->
-    <footer class="bg-[#0f1f3d] text-white py-8 text-xs">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-blue-200">
-            <p class="font-bold text-white">Reservasi Kampus</p>
-            <p>&copy; {{ date('Y') }} Sistem Reservasi &amp; Pelaporan Fasilitas Kampus Terpadu.</p>
-        </div>
-    </footer>
-
-    <!-- Notifikasi Cookies & Session -->
-    <div x-data="{
-            show: false,
-            detail: false,
-            init() { this.show = !document.cookie.split('; ').some(c => c.startsWith('cookie_consent=')); },
-            accept() {
-                document.cookie = 'cookie_consent=1; max-age=' + (60*60*24*365) + '; path=/; SameSite=Lax';
-                this.show = false;
-            }
-         }"
-         x-show="show" x-cloak
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0 translate-y-4"
-         x-transition:enter-end="opacity-100 translate-y-0"
-         class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-sm z-[60] bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 text-xs text-slate-600"
-         role="dialog" aria-label="Pemberitahuan cookies dan session">
-        <div class="flex items-start gap-3">
-            <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    {{-- ============ POPUP: AKUN SEDANG DIVERIFIKASI ============ --}}
+    <div x-show="pending" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="pending = false"></div>
+        <div class="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 text-center space-y-3">
+            <div class="mx-auto w-14 h-14 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/></svg>
             </div>
-            <div class="space-y-2">
-                <p class="font-bold text-slate-900 text-sm">Website ini menggunakan Cookies &amp; Session</p>
-                <p>Kami memakai <strong>cookies</strong> dan <strong>session</strong> agar login Anda tetap aman, pilihan slot pemesanan tidak hilang saat berpindah halaman, dan formulir terlindungi dari serangan.</p>
-
-                <div x-show="detail" x-cloak class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5">
-                    <p><strong class="text-slate-800">{{ config('session.cookie') }}</strong> &ndash; cookie session untuk status login &amp; pilihan slot.</p>
-                    <p><strong class="text-slate-800">XSRF-TOKEN</strong> &ndash; cookie keamanan (perlindungan CSRF).</p>
-                    <p><strong class="text-slate-800">cookie_consent</strong> &ndash; menyimpan pilihan Anda atas pemberitahuan ini.</p>
-                    <p class="text-slate-400">Session berakhir otomatis setelah {{ config('session.lifetime') }} menit tidak aktif.</p>
-                </div>
-
-                <div class="flex items-center gap-2 pt-1">
-                    <button @click="accept()" type="button" class="px-4 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white font-bold rounded-lg transition">Mengerti</button>
-                    <button @click="detail = !detail" type="button" class="px-3 py-2 text-blue-700 hover:underline font-semibold" x-text="detail ? 'Sembunyikan' : 'Lihat detail'"></button>
-                </div>
-            </div>
+            <h3 class="text-base font-extrabold text-slate-900">Akun Anda Sedang Diverifikasi Admin</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+                Terima kasih telah mendaftar. Data Anda sedang diperiksa oleh admin kampus.
+                Anda <strong class="text-slate-700">belum dapat login</strong> sampai akun disetujui. Silakan coba login kembali nanti.
+            </p>
+            <button type="button" @click="pending = false"
+                    class="w-full h-10 bg-[#0f2540] hover:bg-[#0b1c31] text-white text-xs font-bold rounded-lg transition">Mengerti</button>
         </div>
     </div>
-
-    <!-- POP-UP MODAL: PERINGATAN / ERROR VALIDASI -->
-    @if($errors->any())
-    <div x-show="showErrorModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="showErrorModal = false"></div>
-        <div class="flex min-h-full items-center justify-center p-4 text-center">
-            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all w-full max-w-md p-6 border border-rose-100 space-y-4">
-                
-                <!-- Header Modal Error -->
-                <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
-                    <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-black text-slate-900">Perhatian / Kendala</h3>
-                        <p class="text-xs text-slate-500">Silakan periksa kembali isian formulir Anda.</p>
-                    </div>
-                </div>
-
-                <!-- Isi Pesan Error -->
-                <div class="space-y-2 py-2">
-                    @foreach($errors->all() as $err)
-                        <div class="flex items-start gap-2 text-xs font-semibold text-rose-800 bg-rose-50 p-3 rounded-xl border border-rose-100">
-                            <span class="text-rose-500">•</span>
-                            <span>{{ $err }}</span>
-                        </div>
-                    @endforeach
-                </div>
-
-                <!-- Tombol Tutup -->
-                <div class="flex justify-end pt-2 border-t border-slate-100">
-                    <button @click="showErrorModal = false" type="button" class="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow transition">
-                        Saya Mengerti
-                    </button>
-                </div>
-
-            </div>
-        </div>
-    </div>
-    @endif
-
-    <!-- POP-UP MODAL: RESERVASI SAYA GLOBAL -->
-    @auth
-    <div x-show="showModalReservasi" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="showModalReservasi = false"></div>
-        <div class="flex min-h-full items-center justify-center p-4">
-            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:w-full sm:max-w-4xl p-6 border border-slate-100 space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div>
-                        <h3 class="text-base font-black text-slate-900">Riwayat Reservasi Saya</h3>
-                        <p class="text-xs text-slate-500">Daftar pengajuan peminjaman fasilitas kamu.</p>
-                    </div>
-                    <button @click="showModalReservasi = false" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">✕</button>
-                </div>
-
-                <div class="overflow-y-auto max-h-[60vh] border border-slate-100 rounded-xl">
-                    <table class="w-full text-xs text-left">
-                        <thead class="sticky top-0 bg-slate-50 border-b border-slate-100">
-                            <tr class="text-slate-400 uppercase tracking-wider text-[10px]">
-                                <th class="py-3 px-4">Fasilitas</th>
-                                <th class="py-3 px-4">Tanggal</th>
-                                <th class="py-3 px-4">Waktu</th>
-                                <th class="py-3 px-4">Tujuan</th>
-                                <th class="py-3 px-4">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @php
-                                $myReservations = \App\Models\Reservation::where('user_id', auth()->id())->with('facility')->latest()->get();
-                            @endphp
-                            @forelse($myReservations as $res)
-                                <tr class="hover:bg-slate-50/50">
-                                    <td class="py-3 px-4 font-bold text-slate-800">{{ $res->facility->nama_fasilitas ?? '-' }}</td>
-                                    <td class="py-3 px-4 text-slate-600">{{ \Carbon\Carbon::parse($res->tanggal)->format('d M Y') }}</td>
-                                    <td class="py-3 px-4 text-slate-600">{{ \Carbon\Carbon::parse($res->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($res->end_time)->format('H:i') }}</td>
-                                    <td class="py-3 px-4 text-slate-600">{{ $res->tujuan }}</td>
-                                    <td class="py-3 px-4">
-                                        @if($res->status === 'approved')
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Disetujui</span>
-                                        @elseif($res->status === 'rejected')
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">Ditolak</span>
-                                        @else
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">Menunggu</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="5" class="py-4 text-center text-slate-400">Belum ada riwayat reservasi.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="flex justify-end pt-2 border-t border-slate-100">
-                    <button @click="showModalReservasi = false" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition">Tutup</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
-    @stack('scripts')
-</body>
-</html>
+</div>
+@endsection
