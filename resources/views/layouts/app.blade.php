@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Reservasi Kampus')</title>
+    <title>@yield('title', config('app.name', 'Reservasi Kampus'))</title>
 
     <!-- Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,7 +37,6 @@
 </head>
 <body class="bg-slate-50 text-slate-900 flex flex-col min-h-screen font-sans antialiased" 
       x-data="{ 
-          showModalReservasi: false, 
           showErrorModal: {{ $errors->any() ? 'true' : 'false' }}
       }">
 
@@ -58,12 +57,13 @@
 
             <!-- Bagian Kanan: Menu Navigasi / Tombol Auth -->
             <nav class="flex items-center gap-2 text-xs font-bold">
+                <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Cari Fasilitas</a>
+
                 @auth
                     @if(auth()->user()->role === 'pengguna' || (!auth()->user()->isAdmin() && !auth()->user()->isPetugas()))
-                        <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Cari Fasilitas</a>
-                        <button @click="showModalReservasi = true" type="button" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
+                        <a href="{{ route('pengguna.reservasi.index') }}" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
                             Reservasi Saya
-                        </button>
+                        </a>
                         <a href="{{ route('pengguna.laporan.index') }}" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
                             Laporan Saya
                         </a>
@@ -71,10 +71,8 @@
                             Panel Mahasiswa
                         </a>
                     @elseif(auth()->user()->isAdmin())
-                        <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Beranda</a>
                         <a href="{{ route('admin.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Panel Admin</a>
                     @elseif(auth()->user()->isPetugas())
-                        <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Beranda</a>
                         <a href="{{ route('petugas.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Panel Petugas</a>
                     @endif
 
@@ -83,7 +81,7 @@
                         <button type="submit" class="px-3.5 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-lg transition">Keluar</button>
                     </form>
                 @else
-                    {{-- Pengunjung (belum login): hanya Login & Registrasi Akun --}}
+                    {{-- Pengunjung (belum login) --}}
                     <a href="{{ route('login') }}" class="px-4 py-2 border border-slate-300 text-slate-800 hover:bg-slate-50 rounded-lg transition">Login</a>
                     <a href="{{ route('register') }}" class="px-4 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Register</a>
                 @endauth
@@ -199,65 +197,6 @@
     </div>
     @endif
 
-    <!-- POP-UP MODAL: RESERVASI SAYA GLOBAL -->
-    @auth
-    <div x-show="showModalReservasi" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="showModalReservasi = false"></div>
-        <div class="flex min-h-full items-center justify-center p-4">
-            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:w-full sm:max-w-4xl p-6 border border-slate-100 space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div>
-                        <h3 class="text-base font-black text-slate-900">Riwayat Reservasi Saya</h3>
-                        <p class="text-xs text-slate-500">Daftar pengajuan peminjaman fasilitas kamu.</p>
-                    </div>
-                    <button @click="showModalReservasi = false" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">✕</button>
-                </div>
-
-                <div class="overflow-y-auto max-h-[60vh] border border-slate-100 rounded-xl">
-                    <table class="w-full text-xs text-left">
-                        <thead class="sticky top-0 bg-slate-50 border-b border-slate-100">
-                            <tr class="text-slate-400 uppercase tracking-wider text-[10px]">
-                                <th class="py-3 px-4">Fasilitas</th>
-                                <th class="py-3 px-4">Tanggal</th>
-                                <th class="py-3 px-4">Waktu</th>
-                                <th class="py-3 px-4">Tujuan</th>
-                                <th class="py-3 px-4">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @php
-                                $myReservations = \App\Models\Reservation::where('user_id', auth()->id())->with('facility')->latest()->get();
-                            @endphp
-                            @forelse($myReservations as $res)
-                                <tr class="hover:bg-slate-50/50">
-                                    <td class="py-3 px-4 font-bold text-slate-800">{{ $res->facility->nama_fasilitas ?? '-' }}</td>
-                                    <td class="py-3 px-4 text-slate-600">{{ \Carbon\Carbon::parse($res->tanggal)->format('d M Y') }}</td>
-                                    <td class="py-3 px-4 text-slate-600">{{ \Carbon\Carbon::parse($res->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($res->end_time)->format('H:i') }}</td>
-                                    <td class="py-3 px-4 text-slate-600">{{ $res->tujuan }}</td>
-                                    <td class="py-3 px-4">
-                                        @if($res->status === 'approved')
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Disetujui</span>
-                                        @elseif($res->status === 'rejected')
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">Ditolak</span>
-                                        @else
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">Menunggu</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="5" class="py-4 text-center text-slate-400">Belum ada riwayat reservasi.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="flex justify-end pt-2 border-t border-slate-100">
-                    <button @click="showModalReservasi = false" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition">Tutup</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
     @stack('scripts')
 </body>
 </html>
