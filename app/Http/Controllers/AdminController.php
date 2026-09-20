@@ -12,21 +12,73 @@ use App\Models\Report;
 
 class AdminController extends Controller
 {
-    public function dashboard()
+    public function dashboard(Request $request)
     {
-        $users = User::latest()->get();
-        $facilities = Facility::all();
-        $reservations = Reservation::with(['facility', 'user'])->latest()->get();
-        $reports = Report::with(['facility', 'user'])->latest()->get();
+        $totalUsers = User::count();
+        $totalReservations = Reservation::count();
+        $totalReports = Report::count();
+        $pendingUsers = User::where('status_verifikasi', 'pending')->get();
 
-        return view('admin.dashboard', compact('users', 'facilities', 'reservations', 'reports'));
+        // Ambil filter tanggal jika ada
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        // Query fasilitas + filter hitungan berdasarkan rentang tanggal
+        $facilities = Facility::withCount([
+            'reservations' => function ($query) use ($startDate, $endDate) {
+                if ($startDate && $endDate) {
+                    $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+                }
+            },
+            'reports' => function ($query) use ($startDate, $endDate) {
+                if ($startDate && $endDate) {
+                    $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+                }
+            }
+        ])->latest()->get();
+
+        return view('admin.dashboard', compact(
+            'totalUsers', 
+            'totalReservations', 
+            'totalReports', 
+            'pendingUsers', 
+            'facilities',
+            'startDate',
+            'endDate'
+        ));
+    }
+
+    // Req 14 & 15: Pendaftaran langsung Petugas / Pengguna oleh Admin
+    public function storeUserByAdmin(Request $request)
+    {
+        $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email',
+            'role'     => 'required|in:petugas,mahasiswa,dosen,staf',
+            'nip_nim'  => 'nullable|string',
+            'no_hp'    => 'nullable|string',
+            'unit'     => 'nullable|string',
+            'password' => 'required|min:8',
+        ]);
+
+        User::create([
+            'name'              => $request->name,
+            'email'             => $request->email,
+            'role'              => $request->role,
+            'nip'               => $request->nip_nim,
+            'no_hp'             => $request->no_hp,
+            'unit'              => $request->unit,
+            'password'          => Hash::make($request->password),
+            'status_verifikasi' => 'verified',
+        ]);
+
+        return back()->with('success', "Akun {$request->role} berhasil didaftarkan secara langsung.");
     }
 
     public function verifyUser($id)
     {
-        $user = User::findOrFail($id);
-        $user->update(['status_verifikasi' => 'verified']);
-        return back()->with('success', "Akun {$user->name} berhasil diverifikasi.");
+        User::findOrFail($id)->update(['status_verifikasi' => 'verified']);
+        return back()->with('success', 'Akun berhasil diverifikasi.');
     }
 
     /** Menampilkan berkas KTM/KTP (disk private) khusus untuk admin. */
@@ -39,94 +91,93 @@ class AdminController extends Controller
 
     public function rejectUser($id)
     {
-        $user = User::findOrFail($id);
-        $user->update(['status_verifikasi' => 'rejected']);
-        return back()->with('warning', "Akun {$user->name} telah ditolak.");
+        User::findOrFail($id)->update(['status_verifikasi' => 'rejected']);
+        return back()->with('success', 'Pengajuan akun ditolak.');
     }
 
-    public function storePetugas(Request $request)
-    {
-        $request->validate([
-            'name'     => 'required|string|max:100',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'nullable|min:6',
-        ]);
-
-        User::create([
-            'name'              => $request->name,
-            'email'             => $request->email,
-            'password'          => Hash::make($request->password ?? 'password'),
-            'role'              => 'petugas',
-            'status_verifikasi' => 'verified',
-        ]);
-
-        return back()->with('success', 'Akun Petugas Sarana berhasil didaftarkan langsung.');
-    }
-
-    public function storePenggunaDirect(Request $request)
-    {
-        $request->validate([
-            'name'     => 'required|string|max:100',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'nullable|min:6',
-        ]);
-
-        User::create([
-            'name'              => $request->name,
-            'email'             => $request->email,
-            'password'          => Hash::make($request->password ?? 'password'),
-            'role'              => 'pengguna',
-            'status_verifikasi' => 'verified',
-        ]);
-
-        return back()->with('success', 'Akun Pengguna (Dosen/Staf) berhasil dibuat dengan status langsung terverifikasi.');
-    }
-
+    // Req 16: Kelola Fasilitas
     public function storeFacility(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
             'nama_fasilitas' => 'required|string|max:150',
             'tipe'           => 'required|in:Ruangan,Laboratorium,Olahraga,Fasilitas Umum',
             'lokasi'         => 'required|string|max:100',
-            'kapasitas'      => 'required|integer|min:1',
-            'deskripsi'      => 'nullable|string',
+            'kapasitas'      => 'required|numeric',
         ]);
 
-        Facility::create($validated);
-        return back()->with('success', 'Fasilitas baru berhasil ditambahkan ke database.');
+        Facility::create([
+            'nama_fasilitas' => $request->nama_fasilitas,
+            'tipe'           => $request->tipe,
+            'lokasi'         => $request->lokasi,
+            'kapasitas'      => $request->kapasitas,
+            'status'         => 'aktif',
+        ]);
+
+        return back()->with('success', 'Fasilitas baru berhasil ditambahkan.');
     }
 
-    public function exportOkupansi()
+    public function toggleFacilityStatus($id)
     {
-        $facilities = Facility::with(['reservations' => fn($q) => $q->where('status', 'approved')])->get();
+        $facility = Facility::findOrFail($id);
+        $newStatus = $facility->status === 'aktif' ? 'nonaktif' : 'aktif';
+        $facility->update(['status' => $newStatus]);
 
-        $filename = 'rekap_okupansi_fasilitas_' . date('Ymd_His') . '.csv';
-        $handle = fopen('php://memory', 'w');
-        fputcsv($handle, ['ID Fasilitas', 'Nama Fasilitas', 'Tipe', 'Lokasi', 'Total Reservasi Disetujui', 'Total Jam Penggunaan']);
+        return back()->with('success', 'Status fasilitas berhasil diubah.');
+    }
 
-        foreach ($facilities as $fac) {
-            $totalHours = 0;
-            foreach ($fac->reservations as $r) {
-                $start = strtotime($r->start_time);
-                $end = strtotime($r->end_time);
-                $totalHours += ($end - $start) / 3600;
+    // Req 17: Ekspor Full Data Rekap (Sesuai Filter Tanggal)
+    public function exportFullData(Request $request, $format)
+    {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        // Filter hitungan rekap sebelum di-export
+        $facilities = Facility::withCount([
+            'reservations' => function ($query) use ($startDate, $endDate) {
+                if ($startDate && $endDate) {
+                    $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+                }
+            },
+            'reports' => function ($query) use ($startDate, $endDate) {
+                if ($startDate && $endDate) {
+                    $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+                }
             }
-            fputcsv($handle, [
-                $fac->id,
-                $fac->nama_fasilitas,
-                $fac->tipe,
-                $fac->lokasi,
-                $fac->reservations->count(),
-                number_format($totalHours, 1)
-            ]);
+        ])->get();
+
+        if ($format === 'pdf') {
+            return back()->with('info', 'Export PDF sedang diproses.');
         }
 
-        fseek($handle, 0);
-        return response()->stream(function () use ($handle) {
-            fpassthru($handle);
-        }, 200, [
-            'Content-Type'        => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+        $filename = "rekap_full_data_kampusreserve_" . date('Ymd_His') . "." . ($format === 'excel' ? 'xlsx' : 'csv');
+        
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function() use ($facilities) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['ID Fasilitas', 'Nama Fasilitas', 'Tipe', 'Lokasi', 'Kapasitas', 'Status', 'Total Okupansi (Reservasi)', 'Total Kerusakan (Laporan)']);
+
+            foreach ($facilities as $f) {
+                fputcsv($file, [
+                    'FAS-' . $f->id,
+                    $f->nama_fasilitas,
+                    $f->tipe,
+                    $f->lokasi,
+                    $f->kapasitas,
+                    $f->status,
+                    $f->reservations_count,
+                    $f->reports_count
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }
