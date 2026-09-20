@@ -21,31 +21,7 @@
 
     <div class="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 px-6 sm:px-8 py-8">
 
-        {{-- Header --}}
-        <div class="text-center">
-            <div class="w-12 h-12 rounded-2xl bg-[#1e3a8a] text-white font-black text-2xl mx-auto flex items-center justify-center shadow-md">K</div>
-            <h2 class="mt-3 text-2xl font-extrabold text-slate-900" x-text="tab === 'login' ? 'Login' : 'Registrasi Akun'">{{ $tab === 'register' ? 'Registrasi Akun' : 'Login' }}</h2>
-            <p class="mt-1 text-[11px] text-slate-500"
-               x-text="tab === 'login' ? 'Sistem Reservasi & Pelaporan Fasilitas Kampus Terpadu' : 'Isi data diri Anda dengan benar'">
-                {{ $tab === 'register' ? 'Isi data diri Anda dengan benar' : 'Sistem Reservasi & Pelaporan Fasilitas Kampus Terpadu' }}
-            </p>
-        </div>
 
-        {{-- Tab --}}
-        <div class="mt-6 grid grid-cols-2 border-b-2 border-slate-100 text-sm font-bold" role="tablist">
-            <button type="button" role="tab" @click="switchTab('login')"
-                    :aria-selected="tab === 'login'"
-                    class="pb-2.5 -mb-0.5 border-b-2 transition"
-                    :class="tab === 'login' ? 'border-[#1e3a8a] text-[#1e3a8a]' : 'border-transparent text-slate-400 hover:text-slate-600'">
-                Login
-            </button>
-            <button type="button" role="tab" @click="switchTab('register')"
-                    :aria-selected="tab === 'register'"
-                    class="pb-2.5 -mb-0.5 border-b-2 transition"
-                    :class="tab === 'register' ? 'border-[#1e3a8a] text-[#1e3a8a]' : 'border-transparent text-slate-400 hover:text-slate-600'">
-                Registrasi Mandiri
-            </button>
-        </div>
 
         {{-- ============ PANEL LOGIN ============ --}}
         <form x-show="tab === 'login'" @if($tab !== 'login') x-cloak @endif
