@@ -20,7 +20,14 @@
      }">
 
     <div class="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 px-6 sm:px-8 py-8">
-
+         {{-- Header --}}
+        <div class="text-center">
+            <h2 class="mt-3 text-2xl font-extrabold text-slate-900" x-text="tab === 'login' ? 'Login' : 'Registrasi Akun'">{{ $tab === 'register' ? 'Registrasi Akun' : 'Login' }}</h2>
+            <p class="mt-1 text-[11px] text-slate-500"
+               x-text="tab === 'login' ? 'Sistem Reservasi & Pelaporan Fasilitas Kampus Terpadu' : 'Isi data diri Anda dengan benar'">
+                {{ $tab === 'register' ? 'Isi data diri Anda dengan benar' : 'Sistem Reservasi & Pelaporan Fasilitas Kampus Terpadu' }}
+            </p>
+        </div>
 
 
         {{-- ============ PANEL LOGIN ============ --}}
