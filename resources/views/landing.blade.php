@@ -38,7 +38,6 @@
                 Pesan fasilitas kampus, cepat dan tanpa antre
             </h1>
             <p class="mt-3 max-w-xl text-xs sm:text-sm text-blue-100/90 leading-relaxed">
-                Ruang kelas, ruang rapat, laboratorium, auditorium, hingga lapangan olahraga — semua bisa dicek ketersediaannya dan dipesan dari satu tempat.
             </p>
         </div>
     </section>
@@ -86,7 +85,7 @@
             </div>
 
             <button type="submit"
-                    class="h-10 px-6 inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold rounded-lg transition sm:col-span-2 lg:col-span-1">
+                    class="h-10 px-6 inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg transition sm:col-span-2 lg:col-span-1 shadow-sm">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.3-4.3M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
                 Cari
             </button>
@@ -95,15 +94,7 @@
 
     {{-- ===================== DAFTAR FASILITAS ===================== --}}
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-6">
-        <h2 class="text-lg font-extrabold text-slate-900">Daftar Semua Fasilitas Kampus</h2>
-        <p class="text-[11px] text-slate-500 mt-0.5 pb-3 border-b border-slate-200">
-            @if($facilities->count() === $totalFasilitas)
-                Menampilkan sebanyak {{ $facilities->count() }} fasilitas sarana dan prasarana kampus yang siap diorganisir.
-            @else
-                Menampilkan {{ $facilities->count() }} dari {{ $totalFasilitas }} fasilitas sesuai filter pencarian Anda.
-                <a href="{{ route('landing') }}" class="text-blue-700 font-semibold hover:underline">Reset filter</a>
-            @endif
-        </p>
+        <h2 class="text-lg font-extrabold text-slate-900 border-b border-slate-200 pb-3">Daftar Semua Fasilitas Kampus</h2>
 
         @if($facilities->isEmpty())
             <div class="mt-8 bg-white border border-dashed border-slate-300 rounded-2xl py-14 text-center text-sm text-slate-500">
@@ -169,41 +160,46 @@
         @endif
     </section>
 
-    {{-- ===================== KEUNGGULAN ===================== --}}
+{{-- ===================== KEUNGGULAN ===================== --}}
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-10">
-        <div class="border-t border-slate-200 pt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {{-- Grid diatur 3 kolom dan terpusat (justify-center) --}}
+        <div class="border-t border-slate-200 pt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 justify-center">
             @php
                 $fitur = [
-                    ['Cek ketersediaan real-time', 'Lihat slot 30 menit yang masih kosong tanpa perlu bertanya ke petugas.', 'M21 21l-4.3-4.3M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z'],
-                    ['Ajukan reservasi online', 'Pilih tanggal, jam mulai dan selesai, lalu tuliskan tujuan penggunaan.', 'M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z'],
-                    ['Laporkan kerusakan', 'Kirim laporan beserta foto dan pantau status penanganannya.', 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'],
-                    ['Diverifikasi petugas', 'Setiap pengajuan diperiksa petugas agar tidak terjadi jadwal bentrok.', 'M9 12l2 2 4-4m5.6-3A12 12 0 0112 2.9 12 12 0 013.4 6 12 12 0 003 9c0 5.6 3.8 10.3 9 11.6 5.2-1.3 9-6 9-11.6 0-1-.1-2-.4-3z'],
+                    [
+                        'Cek ketersediaan real-time', 
+                        'M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'
+                    ],
+                    [
+                        'Ajukan reservasi online', 
+                        'M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm-8.5-2.5l-3.5-3.5 1.41-1.41L10.5 15.17l5.59-5.59L17.5 11l-7 7z'
+                    ],
+                    [
+                        'Laporkan kerusakan', 
+                        'M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 10.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm1 6h-2v-2h2v2z'
+                    ],
                 ];
             @endphp
-            @foreach($fitur as [$judul, $isi, $ikon])
-                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $ikon }}"/></svg>
+            @foreach($fitur as [$judul, $ikon])
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                            <path d="{{ $ikon }}"/>
+                        </svg>
                     </div>
-                    <h3 class="mt-3 font-extrabold text-[12px] text-slate-900">{{ $judul }}</h3>
-                    <p class="mt-1 text-[11px] text-slate-500 leading-relaxed">{{ $isi }}</p>
+                    <h3 class="font-extrabold text-[13px] text-slate-900 leading-snug">{{ $judul }}</h3>
                 </div>
             @endforeach
         </div>
 
         {{-- Banner laporan kerusakan --}}
         <div class="mt-6 rounded-xl bg-gradient-to-r from-[#0b1f4d] to-[#13306b] text-white p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
-            <div class="flex items-start gap-4">
-                <div class="w-10 h-10 rounded-lg bg-white/10 text-amber-400 flex items-center justify-center shrink-0">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.3 4.3a1 1 0 011.4 0l1.5 1.5a4 4 0 014.5 5.3l-9 9a2 2 0 01-2.8-2.8l9-9-1.6-1.6a1 1 0 010-1.4z"/></svg>
-                </div>
-                <div>
-                    <h3 class="font-extrabold text-sm">Fasilitas Rusak atau Bermasalah?</h3>
-                    <p class="text-[11px] text-blue-100/90 mt-0.5 max-w-xl">Laporkan kerusakan ruangan, proyektor, atau kebersihan secara online agar segera diperbaiki petugas. Laporan Anda tercatat transparan di Akun Saya.</p>
-                </div>
+            <div>
+                <h3 class="font-extrabold text-sm">Fasilitas Rusak atau Bermasalah?</h3>
+                <p class="text-[11px] text-blue-100/90 mt-0.5 max-w-xl">Laporkan kerusakan ruangan, proyektor, atau kebersihan agar segera diperbaiki.</p>
             </div>
             <a href="{{ $laporUrl }}"
-               class="shrink-0 inline-flex items-center justify-center gap-1.5 px-5 h-10 bg-amber-400 hover:bg-amber-500 text-slate-900 text-xs font-extrabold rounded-lg transition">
+               class="shrink-0 inline-flex items-center justify-center gap-1.5 px-5 h-10 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-lg transition shadow-sm">
                 Laporkan Masalah
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
             </a>
