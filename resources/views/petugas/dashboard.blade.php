@@ -82,7 +82,7 @@
         <a href="{{ route('petugas.reservasi.index') }}"
            class="group relative bg-white rounded-2xl p-6 shadow border border-slate-100 overflow-hidden cursor-pointer hover:shadow-lg transition duration-300 flex flex-col justify-between min-h-[220px]">
             <div class="absolute inset-0 bg-gradient-to-r from-blue-950/90 to-blue-900/80 z-10"></div>
-            <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80"
+            <img src="{{ asset('images/reservasi.jpg') }}"
                  alt="Reservasi Fasilitas"
                  class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500">
 
@@ -106,7 +106,7 @@
         <a href="{{ route('petugas.laporan.index') }}"
            class="group relative bg-white rounded-2xl p-6 shadow border border-slate-100 overflow-hidden cursor-pointer hover:shadow-lg transition duration-300 flex flex-col justify-between min-h-[220px]">
             <div class="absolute inset-0 bg-gradient-to-r from-rose-950/90 to-rose-900/80 z-10"></div>
-            <img src="https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80"
+            <img src="{{ asset('images/laporan.jpg') }}"
                  alt="Laporan Kendala Fasilitas"
                  class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500">
 
@@ -129,7 +129,7 @@
         <a href="{{ route('petugas.fasilitas.index') }}"
            class="group relative bg-white rounded-2xl p-6 shadow border border-slate-100 overflow-hidden cursor-pointer hover:shadow-lg transition duration-300 flex flex-col justify-between min-h-[220px]">
             <div class="absolute inset-0 bg-gradient-to-r from-emerald-950/90 to-emerald-900/80 z-10"></div>
-            <img src="https://images.unsplash.com/photo-1562564055-71e051d33c19?auto=format&fit=crop&w=800&q=80"
+            <img src="{{ asset('images/fasilitas.jpg') }}"
                  alt="Status Fasilitas"
                  class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500">
 
