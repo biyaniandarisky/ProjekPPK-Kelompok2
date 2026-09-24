@@ -12,16 +12,19 @@ use App\Models\Report;
 
 class AdminController extends Controller
 {
+    /* =========================================================
+     |  DASHBOARD
+     ========================================================= */
     public function dashboard(Request $request)
     {
-        $totalUsers = User::count();
+        $totalUsers        = User::count();
         $totalReservations = Reservation::count();
-        $totalReports = Report::count();
-        $pendingUsers = User::where('status_verifikasi', 'pending')->get();
+        $totalReports      = Report::count();
+        $pendingUsers      = User::where('status_verifikasi', 'pending')->get();
 
         // Ambil filter tanggal jika ada
         $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
+        $endDate   = $request->input('end_date');
 
         // Query fasilitas + filter hitungan berdasarkan rentang tanggal
         $facilities = Facility::withCount([
@@ -38,17 +41,62 @@ class AdminController extends Controller
         ])->latest()->get();
 
         return view('admin.dashboard', compact(
-            'totalUsers', 
-            'totalReservations', 
-            'totalReports', 
-            'pendingUsers', 
+            'totalUsers',
+            'totalReservations',
+            'totalReports',
+            'pendingUsers',
             'facilities',
             'startDate',
             'endDate'
         ));
     }
 
-    // Req 14 & 15: Pendaftaran langsung Petugas / Pengguna oleh Admin
+    /* =========================================================
+     |  REKAP OKUPANSI (HALAMAN) — TAMBAHAN BARU
+     ========================================================= */
+    public function rekapOkupansi(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate   = $request->input('end_date');
+
+        $facilities = Facility::withCount([
+            'reservations' => function ($query) use ($startDate, $endDate) {
+                if ($startDate && $endDate) {
+                    $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+                }
+            },
+            'reports' => function ($query) use ($startDate, $endDate) {
+                if ($startDate && $endDate) {
+                    $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+                }
+            }
+        ])->orderBy('nama_fasilitas')->get();
+
+        return view('admin.rekap.okupansi', compact('facilities', 'startDate', 'endDate'));
+    }
+
+    /* =========================================================
+     |  REKAP KERUSAKAN (HALAMAN) — TAMBAHAN BARU
+     ========================================================= */
+    public function rekapKerusakan(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate   = $request->input('end_date');
+
+        $query = Report::with(['user', 'facility', 'petugas']);
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        }
+
+        $reports = $query->orderBy('created_at', 'desc')->get();
+
+        return view('admin.rekap.kerusakan', compact('reports', 'startDate', 'endDate'));
+    }
+
+    /* =========================================================
+     |  REQ 14 & 15: PENDAFTARAN LANGSUNG OLEH ADMIN
+     ========================================================= */
     public function storeUserByAdmin(Request $request)
     {
         $request->validate([
@@ -85,7 +133,11 @@ class AdminController extends Controller
     public function showKtm($id)
     {
         $user = User::findOrFail($id);
-        abort_unless($user->ktm_path && Storage::disk('local')->exists($user->ktm_path), 404, 'Berkas KTM/KTP tidak ditemukan.');
+        abort_unless(
+            $user->ktm_path && Storage::disk('local')->exists($user->ktm_path),
+            404,
+            'Berkas KTM/KTP tidak ditemukan.'
+        );
         return Storage::disk('local')->response($user->ktm_path);
     }
 
@@ -95,7 +147,9 @@ class AdminController extends Controller
         return back()->with('success', 'Pengajuan akun ditolak.');
     }
 
-    // Req 16: Kelola Fasilitas
+    /* =========================================================
+     |  REQ 16: KELOLA FASILITAS
+     ========================================================= */
     public function storeFacility(Request $request)
     {
         $request->validate([
@@ -116,22 +170,44 @@ class AdminController extends Controller
         return back()->with('success', 'Fasilitas baru berhasil ditambahkan.');
     }
 
-    public function toggleFacilityStatus($id)
+    public function updateFacility(Request $request, $id)
     {
         $facility = Facility::findOrFail($id);
+
+        $request->validate([
+            'nama_fasilitas' => 'required|string|max:150',
+            'tipe'           => 'required|in:Ruangan,Laboratorium,Olahraga,Fasilitas Umum',
+            'lokasi'         => 'required|string|max:100',
+            'kapasitas'      => 'required|numeric',
+        ]);
+
+        $facility->update([
+            'nama_fasilitas' => $request->nama_fasilitas,
+            'tipe'           => $request->tipe,
+            'lokasi'         => $request->lokasi,
+            'kapasitas'      => $request->kapasitas,
+        ]);
+
+        return back()->with('success', 'Fasilitas berhasil diperbarui.');
+    }
+
+    public function toggleFacilityStatus($id)
+    {
+        $facility  = Facility::findOrFail($id);
         $newStatus = $facility->status === 'aktif' ? 'nonaktif' : 'aktif';
         $facility->update(['status' => $newStatus]);
 
         return back()->with('success', 'Status fasilitas berhasil diubah.');
     }
 
-    // Req 17: Ekspor Full Data Rekap (Sesuai Filter Tanggal)
+    /* =========================================================
+     |  REQ 17: EXPORT FULL DATA REKAP (CSV / EXCEL / PDF)
+     ========================================================= */
     public function exportFullData(Request $request, $format)
     {
         $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
+        $endDate   = $request->input('end_date');
 
-        // Filter hitungan rekap sebelum di-export
         $facilities = Facility::withCount([
             'reservations' => function ($query) use ($startDate, $endDate) {
                 if ($startDate && $endDate) {
@@ -145,12 +221,45 @@ class AdminController extends Controller
             }
         ])->get();
 
+        // ===== PDF: render view, user tinggal print/save as PDF =====
         if ($format === 'pdf') {
-            return back()->with('info', 'Export PDF sedang diproses.');
+            return response()
+                ->view('admin.rekap.pdf', compact('facilities', 'startDate', 'endDate'))
+                ->header('Content-Type', 'text/html');
         }
 
-        $filename = "rekap_full_data_kampusreserve_" . date('Ymd_His') . "." . ($format === 'excel' ? 'xlsx' : 'csv');
-        
+        $filename = "rekap_full_data_kampusreserve_" . date('Ymd_His')
+                  . "." . ($format === 'excel' ? 'xls' : 'csv');
+
+        // ===== EXCEL (HTML table, bisa dibuka Excel) =====
+        if ($format === 'excel') {
+            $html  = '<table border="1">';
+            $html .= '<tr>';
+            $html .= '<th>ID Fasilitas</th><th>Nama Fasilitas</th><th>Tipe</th><th>Lokasi</th>';
+            $html .= '<th>Kapasitas</th><th>Status</th><th>Total Okupansi</th><th>Total Kerusakan</th>';
+            $html .= '</tr>';
+
+            foreach ($facilities as $f) {
+                $html .= '<tr>';
+                $html .= '<td>FAS-' . $f->id . '</td>';
+                $html .= '<td>' . e($f->nama_fasilitas) . '</td>';
+                $html .= '<td>' . e($f->tipe) . '</td>';
+                $html .= '<td>' . e($f->lokasi) . '</td>';
+                $html .= '<td>' . e($f->kapasitas) . '</td>';
+                $html .= '<td>' . e($f->status) . '</td>';
+                $html .= '<td>' . e($f->reservations_count) . '</td>';
+                $html .= '<td>' . e($f->reports_count) . '</td>';
+                $html .= '</tr>';
+            }
+            $html .= '</table>';
+
+            return response($html, 200, [
+                'Content-Type'        => 'application/vnd.ms-excel',
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            ]);
+        }
+
+        // ===== CSV (default) =====
         $headers = [
             "Content-type"        => "text/csv",
             "Content-Disposition" => "attachment; filename=$filename",
@@ -159,9 +268,18 @@ class AdminController extends Controller
             "Expires"             => "0"
         ];
 
-        $callback = function() use ($facilities) {
+        $callback = function () use ($facilities) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['ID Fasilitas', 'Nama Fasilitas', 'Tipe', 'Lokasi', 'Kapasitas', 'Status', 'Total Okupansi (Reservasi)', 'Total Kerusakan (Laporan)']);
+            fputcsv($file, [
+                'ID Fasilitas',
+                'Nama Fasilitas',
+                'Tipe',
+                'Lokasi',
+                'Kapasitas',
+                'Status',
+                'Total Okupansi (Reservasi)',
+                'Total Kerusakan (Laporan)'
+            ]);
 
             foreach ($facilities as $f) {
                 fputcsv($file, [
