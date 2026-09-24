@@ -68,7 +68,6 @@
             <p class="text-center text-[11px] text-slate-500 pt-1 leading-relaxed">
                 Belum punya akun?
                 <button type="button" @click="switchTab('register')" class="font-extrabold text-[#1e3a8a] hover:underline">Daftar di sini</button>.
-                Akses untuk Mahasiswa, Dosen, Staf, dan Petugas Kampus.
             </p>
         </form>
 

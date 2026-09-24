@@ -13,7 +13,11 @@ export default {
                     navy: '#1e3a8a',
                     emerald: '#10b981',
                 }
-            }
+            },
+            fontFamily: {
+                sans: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+                mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+            },
         },
     },
     plugins: [],
