@@ -19,6 +19,7 @@ class Reservation extends Model
         'tujuan',
         'status',
         'alasan_batal',
+        'alasan_tolak',
     ];
 
     protected function casts(): array

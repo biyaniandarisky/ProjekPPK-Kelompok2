@@ -24,6 +24,8 @@
         x-data="{
             filterStatus: 'semua',
             searchQuery: '',
+            modalDetail: null,
+            modalSelesai: null,
             matchSearch(haystack) {
                 return haystack.toLowerCase().includes(this.searchQuery.toLowerCase());
             }
@@ -81,9 +83,10 @@
                                 $r->kategori_laporan,
                             ])->implode(' ');
                         @endphp
-                        <tr class="border-b border-slate-100"
+                        <tr class="border-b border-slate-100 hover:bg-slate-50/70 cursor-pointer transition"
                             x-show="(filterStatus === 'semua' || filterStatus === '{{ $r->status_laporan }}') && matchSearch('{{ addslashes($searchHaystack) }}')"
-                            x-cloak>
+                            x-cloak
+                            @click="modalDetail = {{ $r->id }}">
                             <td class="py-2 pr-4 font-bold">{{ $r->user->name ?? '-' }}</td>
                             <td class="py-2 pr-4">{{ $r->facility->nama_fasilitas ?? '-' }}</td>
                             <td class="py-2 pr-4">{{ $r->kategori_laporan }}</td>
@@ -93,19 +96,122 @@
                                     {{ ucfirst(str_replace('_', ' ', $r->facility->status ?? 'aktif')) }}
                                 </span>
                             </td>
-                            <td class="py-2 pr-4">
+                            <td class="py-2 pr-4" @click.stop>
                                 @if($r->status_laporan == 'baru')
-                                    <form action="{{ route('petugas.laporan.process', $r->id) }}" method="POST">
+                                    <form action="{{ route('petugas.laporan.process', $r->id) }}" method="POST"
+                                          onsubmit="return confirm('Proses laporan ini? Fasilitas akan otomatis ditandai Dalam Perbaikan.');">
                                         @csrf
                                         <button class="px-3 py-1.5 bg-blue-800 hover:bg-blue-900 text-white rounded-lg font-bold whitespace-nowrap">Proses</button>
                                     </form>
                                 @elseif($r->status_laporan == 'diproses')
-                                    <form action="{{ route('petugas.laporan.resolve', $r->id) }}" method="POST" class="flex gap-2">
-                                        @csrf
-                                        <input type="text" name="catatan_resolusi" placeholder="Catatan perbaikan" class="p-1.5 bg-slate-50 border border-slate-300 rounded-lg text-[10px]" required>
-                                        <button class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold whitespace-nowrap">Selesaikan</button>
-                                    </form>
+                                    <button type="button" @click="modalSelesai = {{ $r->id }}"
+                                        class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold whitespace-nowrap">
+                                        Selesaikan
+                                    </button>
                                 @endif
+                            </td>
+                        </tr>
+
+                        <!-- Modal: Detail Laporan -->
+                        <tr x-show="modalDetail === {{ $r->id }}" x-cloak>
+                            <td colspan="6" class="p-0">
+                                <div class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" @click.self="modalDetail = null">
+                                    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="modalDetail = null"></div>
+                                    <div class="flex min-h-full items-center justify-center p-4">
+                                        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 border border-slate-100 space-y-4 text-left" @click.stop>
+                                            <div class="border-b border-slate-100 pb-3 flex items-start justify-between">
+                                                <div>
+                                                    <h3 class="text-base font-black text-slate-900">Detail Laporan</h3>
+                                                    <p class="text-xs text-slate-500">Dilaporkan {{ $r->created_at->format('d M Y, H:i') }}</p>
+                                                </div>
+                                                <button type="button" @click="modalDetail = null" class="text-slate-400 hover:text-slate-700">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                </button>
+                                            </div>
+
+                                            <div class="grid grid-cols-2 gap-3 text-xs">
+                                                <div>
+                                                    <p class="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Pelapor</p>
+                                                    <p class="font-bold text-slate-800">{{ $r->user->name ?? '-' }}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Fasilitas</p>
+                                                    <p class="font-bold text-slate-800">{{ $r->facility->nama_fasilitas ?? '-' }}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Kategori</p>
+                                                    <p class="font-bold text-slate-800">{{ $r->kategori_laporan }}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Status</p>
+                                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $facilityStatusBadge }}">{{ ucfirst($r->status_laporan) }}</span>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <p class="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Deskripsi Kendala</p>
+                                                <p class="text-xs text-slate-700 mt-1 leading-relaxed">{{ $r->deskripsi }}</p>
+                                            </div>
+
+                                            @if($r->foto)
+                                                <div>
+                                                    <p class="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-1">Foto Bukti</p>
+                                                    <img src="{{ $r->foto }}" alt="Foto laporan" class="rounded-xl border border-slate-200 max-h-56 object-cover">
+                                                </div>
+                                            @endif
+
+                                            @if($r->catatan_resolusi)
+                                                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                                                    <p class="text-emerald-700 font-bold uppercase tracking-wider text-[10px]">Catatan Resolusi</p>
+                                                    <p class="text-xs text-emerald-800 mt-1">{{ $r->catatan_resolusi }}</p>
+                                                </div>
+                                            @endif
+
+                                            <div class="flex justify-end pt-2 border-t border-slate-100">
+                                                <button type="button" @click="modalDetail = null"
+                                                    class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition">
+                                                    Tutup
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Modal: Selesaikan Laporan (catatan wajib) -->
+                        <tr x-show="modalSelesai === {{ $r->id }}" x-cloak>
+                            <td colspan="6" class="p-0">
+                                <div class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+                                    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="modalSelesai = null"></div>
+                                    <div class="flex min-h-full items-center justify-center p-4">
+                                        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-slate-100 space-y-4 text-left">
+                                            <div class="border-b border-slate-100 pb-3">
+                                                <h3 class="text-base font-black text-slate-900">Selesaikan Laporan</h3>
+                                                <p class="text-xs text-slate-500">{{ $r->facility->nama_fasilitas ?? '-' }} &bull; {{ $r->kategori_laporan }}</p>
+                                            </div>
+                                            <form action="{{ route('petugas.laporan.resolve', $r->id) }}" method="POST" class="space-y-3">
+                                                @csrf
+                                                <div>
+                                                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Catatan Perbaikan (wajib)</label>
+                                                    <textarea name="catatan_resolusi" rows="3" required maxlength="250"
+                                                        placeholder="Contoh: AC sudah diperbaiki dan diuji normal."
+                                                        class="mt-1 w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-200"></textarea>
+                                                </div>
+                                                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                                                    <button type="button" @click="modalSelesai = null"
+                                                        class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition">
+                                                        Batal
+                                                    </button>
+                                                    <button type="submit"
+                                                        class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition">
+                                                        Tandai Selesai
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     @empty

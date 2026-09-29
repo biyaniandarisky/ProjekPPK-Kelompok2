@@ -62,6 +62,38 @@
                     @elseif(auth()->user()->isAdmin())
                         <a href="{{ route('admin.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Panel Admin</a>
                     @elseif(auth()->user()->isPetugas())
+                        {{-- Tab jalur pintas: Reservasi / Laporan / Fasilitas --}}
+                        <a href="{{ route('petugas.reservasi.index') }}"
+                           class="hidden md:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('petugas.reservasi.*') ? 'bg-slate-100 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
+                            Reservasi
+                        </a>
+                        <a href="{{ route('petugas.laporan.index') }}"
+                           class="hidden md:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('petugas.laporan.*') ? 'bg-slate-100 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
+                            Laporan
+                        </a>
+                        <a href="{{ route('petugas.fasilitas.index') }}"
+                           class="hidden md:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('petugas.fasilitas.*') ? 'bg-slate-100 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
+                            Fasilitas
+                        </a>
+
+                        {{-- Lonceng notifikasi: menuju halaman Notifikasi --}}
+                        <a href="{{ route('petugas.notifikasi.index') }}" aria-label="Notifikasi"
+                           class="relative p-2 rounded-lg transition {{ request()->routeIs('petugas.notifikasi.*') ? 'bg-slate-100 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
+                            <svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                            @if($notifCount > 0)
+                                <span class="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center">
+                                    {{ $notifCount > 9 ? '9+' : $notifCount }}
+                                </span>
+                            @endif
+                        </a>
+
+                        {{-- Sapaan nama petugas --}}
+                        <span class="hidden lg:inline-block px-2 text-slate-600 font-semibold">
+                            Halo, {{ explode(' ', auth()->user()->name)[0] }}
+                        </span>
+
                         <a href="{{ route('petugas.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Panel Petugas</a>
                     @endif
 

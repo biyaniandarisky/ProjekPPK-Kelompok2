@@ -104,7 +104,8 @@
                             <td class="py-3 pr-4">
                                 <div class="flex flex-wrap gap-2">
                                     @if($f->status !== 'dalam_perbaikan')
-                                        <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST">
+                                        <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST"
+                                              onsubmit="return confirm('Tandai {{ addslashes($f->nama_fasilitas) }} sebagai Dalam Perbaikan? Laporan Baru pada fasilitas ini akan otomatis jadi Diproses.');">
                                             @csrf
                                             <input type="hidden" name="status" value="dalam_perbaikan">
                                             <button class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold whitespace-nowrap">
@@ -122,7 +123,8 @@
                                     @endif
 
                                     @if($f->status !== 'aktif')
-                                        <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST">
+                                        <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST"
+                                              onsubmit="return confirm('Aktifkan kembali {{ addslashes($f->nama_fasilitas) }}?');">
                                             @csrf
                                             <input type="hidden" name="status" value="aktif">
                                             <button class="px-3 py-1.5 bg-blue-800 hover:bg-blue-900 text-white rounded-lg font-bold whitespace-nowrap">

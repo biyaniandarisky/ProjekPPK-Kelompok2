@@ -14,21 +14,21 @@ class PetugasController extends Controller
     {
         $reservations = Reservation::with('facility')->get();
         $reports = Report::all();
-        $facilities = Facility::all();
+        $today = now()->toDateString();
 
+        // 3 kartu statistik gabungan (reservasi + laporan), ringkas & bisa diklik ke halaman terkait.
         $stats = [
-            'total_reservasi' => $reservations->count(),
-            'menunggu'        => $reservations->where('status', 'pending')->count(),
-            'disetujui'       => $reservations->where('status', 'approved')->count(),
-            'ditolak'         => $reservations->where('status', 'rejected')->count(),
-            'dibatalkan'      => $reservations->where('status', 'cancelled')->count(),
-            'total_laporan'   => $reports->count(),
-            'laporan_baru'    => $reports->where('status_laporan', 'baru')->count(),
-            'laporan_proses'  => $reports->where('status_laporan', 'diproses')->count(),
-            'laporan_selesai' => $reports->where('status_laporan', 'selesai')->count(),
-            'total_fasilitas' => $facilities->count(),
-            'fasilitas_aktif' => $facilities->where('status', 'aktif')->count(),
-            'fasilitas_perbaikan' => $facilities->where('status', 'dalam_perbaikan')->count(),
+            // Permintaan yang baru masuk dan belum ditindaklanjuti sama sekali.
+            'baru_masuk' => $reservations->where('status', 'pending')->count()
+                + $reports->where('status_laporan', 'baru')->count(),
+
+            // Reservasi yang sudah disetujui tapi jadwalnya belum lewat (masih akan/sedang berlangsung).
+            'masih_berjalan' => $reservations->where('status', 'approved')
+                ->filter(fn ($r) => $r->tanggal->toDateString() >= $today)
+                ->count(),
+
+            // Total reservasi yang sudah disetujui (sepanjang waktu).
+            'disetujui' => $reservations->where('status', 'approved')->count(),
         ];
 
         return view('petugas.dashboard', compact('stats'));
@@ -46,6 +46,30 @@ class PetugasController extends Controller
         $reports = Report::with(['facility', 'user'])->latest()->get();
 
         return view('petugas.laporan', compact('reports'));
+    }
+
+    public function notifikasiIndex()
+    {
+        $reservasiBaru = Reservation::with(['facility', 'user'])
+            ->where('status', 'pending')
+            ->latest()
+            ->get();
+
+        $laporanBaru = Report::with(['facility', 'user'])
+            ->where('status_laporan', 'baru')
+            ->latest()
+            ->get();
+
+        // Gabungkan reservasi & laporan baru dalam satu daftar, terbaru di atas.
+        $notifikasi = $reservasiBaru
+            ->map(fn ($r) => ['tipe' => 'reservasi', 'item' => $r, 'waktu' => $r->created_at])
+            ->concat(
+                $laporanBaru->map(fn ($l) => ['tipe' => 'laporan', 'item' => $l, 'waktu' => $l->created_at])
+            )
+            ->sortByDesc('waktu')
+            ->values();
+
+        return view('petugas.notifikasi', compact('notifikasi'));
     }
 
     public function fasilitasIndex()
@@ -75,12 +99,19 @@ class PetugasController extends Controller
         return back()->with('success', "Reservasi #{$res->id} berhasil disetujui.");
     }
 
-    public function rejectReservasi($id)
+    public function rejectReservasi(Request $request, $id)
     {
+        $request->validate([
+            'alasan_tolak' => 'required|string|max:250',
+        ], [
+            'alasan_tolak.required' => 'Alasan penolakan wajib diisi.',
+        ]);
+
         $res = Reservation::findOrFail($id);
         $res->update([
-            'status'     => 'rejected',
-            'petugas_id' => auth()->id(),
+            'status'       => 'rejected',
+            'alasan_tolak' => $request->alasan_tolak,
+            'petugas_id'   => auth()->id(),
         ]);
 
         return back()->with('info', "Reservasi #{$res->id} telah ditolak.");

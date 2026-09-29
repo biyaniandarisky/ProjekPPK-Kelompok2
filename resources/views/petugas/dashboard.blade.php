@@ -3,77 +3,60 @@
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
     <div>
+        <p class="text-sm font-bold text-blue-800">Halo, {{ explode(' ', auth()->user()->name)[0] }} 👋</p>
         <h1 class="text-2xl font-black text-slate-900">Panel Petugas Sarana</h1>
         <p class="text-sm text-slate-500">Verifikasi reservasi, kelola laporan kendala, dan atur status fasilitas.</p>
     </div>
 
-    <!-- Statistik Reservasi -->
-    <div>
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Statistik Reservasi</p>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Total Reservasi</p>
-                <p class="text-2xl font-black text-blue-900">{{ $stats['total_reservasi'] }}</p>
+    <!-- Statistik Ringkas (klik untuk buka halaman terkait) -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="{{ route('petugas.reservasi.index') }}"
+           class="group flex items-center gap-4 rounded-2xl p-5 shadow bg-gradient-to-br from-amber-400 to-amber-500 text-white hover:shadow-lg hover:-translate-y-0.5 transition">
+            <div class="w-11 h-11 rounded-xl bg-white/25 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
             </div>
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Menunggu</p>
-                <p class="text-2xl font-black text-amber-500">{{ $stats['menunggu'] }}</p>
+            <div class="min-w-0">
+                <p class="text-xs font-bold text-amber-50">Baru Masuk (Permintaan)</p>
+                <p class="text-3xl font-black leading-tight">{{ $stats['baru_masuk'] }}</p>
             </div>
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Disetujui</p>
-                <p class="text-2xl font-black text-emerald-600">{{ $stats['disetujui'] }}</p>
-            </div>
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Ditolak</p>
-                <p class="text-2xl font-black text-rose-600">{{ $stats['ditolak'] }}</p>
-            </div>
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Dibatalkan</p>
-                <p class="text-2xl font-black text-slate-500">{{ $stats['dibatalkan'] }}</p>
-            </div>
-        </div>
-    </div>
+            <svg class="w-4 h-4 ml-auto text-amber-100 group-hover:translate-x-1 transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+            </svg>
+        </a>
 
-    <!-- Statistik Laporan -->
-    <div>
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Statistik Laporan</p>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Total Laporan</p>
-                <p class="text-2xl font-black text-blue-900">{{ $stats['total_laporan'] }}</p>
+        <a href="{{ route('petugas.reservasi.index') }}"
+           class="group flex items-center gap-4 rounded-2xl p-5 shadow bg-gradient-to-br from-blue-600 to-blue-800 text-white hover:shadow-lg hover:-translate-y-0.5 transition">
+            <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/>
+                </svg>
             </div>
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Baru</p>
-                <p class="text-2xl font-black text-amber-500">{{ $stats['laporan_baru'] }}</p>
+            <div class="min-w-0">
+                <p class="text-xs font-bold text-blue-100">Masih Berjalan</p>
+                <p class="text-3xl font-black leading-tight">{{ $stats['masih_berjalan'] }}</p>
             </div>
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Diproses</p>
-                <p class="text-2xl font-black text-blue-700">{{ $stats['laporan_proses'] }}</p>
-            </div>
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Selesai</p>
-                <p class="text-2xl font-black text-emerald-600">{{ $stats['laporan_selesai'] }}</p>
-            </div>
-        </div>
-    </div>
+            <svg class="w-4 h-4 ml-auto text-blue-100 group-hover:translate-x-1 transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+            </svg>
+        </a>
 
-    <!-- Statistik Fasilitas -->
-    <div>
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Statistik Fasilitas</p>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Total Fasilitas</p>
-                <p class="text-2xl font-black text-blue-900">{{ $stats['total_fasilitas'] }}</p>
+        <a href="{{ route('petugas.reservasi.index') }}"
+           class="group flex items-center gap-4 rounded-2xl p-5 shadow bg-gradient-to-br from-emerald-500 to-emerald-700 text-white hover:shadow-lg hover:-translate-y-0.5 transition">
+            <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.6-3A12 12 0 0112 2.9 12 12 0 013.4 6 12 12 0 003 9c0 5.6 3.8 10.3 9 11.6 5.2-1.3 9-6 9-11.6 0-1-.1-2-.4-3z"/>
+                </svg>
             </div>
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Aktif</p>
-                <p class="text-2xl font-black text-emerald-600">{{ $stats['fasilitas_aktif'] }}</p>
+            <div class="min-w-0">
+                <p class="text-xs font-bold text-emerald-50">Disetujui</p>
+                <p class="text-3xl font-black leading-tight">{{ $stats['disetujui'] }}</p>
             </div>
-            <div class="bg-white rounded-2xl p-5 shadow border border-slate-100">
-                <p class="text-xs font-bold text-slate-500">Dalam Perbaikan</p>
-                <p class="text-2xl font-black text-amber-500">{{ $stats['fasilitas_perbaikan'] }}</p>
-            </div>
-        </div>
+            <svg class="w-4 h-4 ml-auto text-emerald-100 group-hover:translate-x-1 transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+            </svg>
+        </a>
     </div>
 
     <!-- Kartu Menu Utama -->

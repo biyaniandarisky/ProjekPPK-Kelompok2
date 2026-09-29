@@ -70,6 +70,7 @@ Route::middleware(['auth', 'role:petugas'])
         Route::get('/reservasi', [PetugasController::class, 'reservasiIndex'])->name('reservasi.index');
         Route::get('/laporan', [PetugasController::class, 'laporanIndex'])->name('laporan.index');
         Route::get('/fasilitas', [PetugasController::class, 'fasilitasIndex'])->name('fasilitas.index');
+        Route::get('/notifikasi', [PetugasController::class, 'notifikasiIndex'])->name('notifikasi.index');
 
         Route::post('/reservasi/{id}/approve', [PetugasController::class, 'approveReservasi'])->name('reservasi.approve');
         Route::post('/reservasi/{id}/reject', [PetugasController::class, 'rejectReservasi'])->name('reservasi.reject');
