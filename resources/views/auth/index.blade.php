@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-    $inputBase = 'w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900';
+    $inputBase = 'w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0f2540]/20 focus:border-[#0f2540]';
 @endphp
 
 <div class="flex items-start justify-center px-4 py-10 sm:py-14"
@@ -20,7 +20,7 @@
      }">
 
     <div class="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 px-6 sm:px-8 py-8">
-         {{-- Header --}}
+        {{-- Header --}}
         <div class="text-center">
             <h2 class="mt-3 text-2xl font-extrabold text-slate-900" x-text="tab === 'login' ? 'Login' : 'Registrasi Akun'">{{ $tab === 'register' ? 'Registrasi Akun' : 'Login' }}</h2>
             <p class="mt-1 text-[11px] text-slate-500"
@@ -28,7 +28,6 @@
                 {{ $tab === 'register' ? 'Isi data diri Anda dengan benar' : 'Sistem Reservasi & Pelaporan Fasilitas Kampus Terpadu' }}
             </p>
         </div>
-
 
         {{-- ============ PANEL LOGIN ============ --}}
         <form x-show="tab === 'login'" @if($tab !== 'login') x-cloak @endif
@@ -53,7 +52,7 @@
                 <div class="relative">
                     <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 11V8a4 4 0 118 0v3"/></svg>
                     <input id="login-password" type="password" name="password" required autocomplete="current-password"
-                           placeholder="Minimal 6 karakter" class="{{ $inputBase }} pl-9">
+                           placeholder="Masukkan password Anda" class="{{ $inputBase }} pl-9">
                 </div>
                 <p x-show="lupa" x-cloak class="mt-2 text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
                     Untuk mereset password, silakan hubungi admin atau petugas kampus.
@@ -61,13 +60,13 @@
             </div>
 
             <button type="submit"
-                    class="w-full h-12 bg-[#1e3a8a] hover:bg-[#172f70] text-white text-sm font-bold rounded-xl shadow-md transition">
+                    class="w-full h-11 bg-[#0f2540] hover:bg-[#0b1c31] text-white text-sm font-bold rounded-xl shadow-md transition">
                 Login ke Sistem
             </button>
 
             <p class="text-center text-[11px] text-slate-500 pt-1 leading-relaxed">
                 Belum punya akun?
-                <button type="button" @click="switchTab('register')" class="font-extrabold text-[#1e3a8a] hover:underline">Daftar di sini</button>.
+                <button type="button" @click="switchTab('register')" class="font-extrabold text-blue-700 hover:underline">Daftar di sini</button>.
             </p>
         </form>
 
@@ -134,7 +133,7 @@
             </div>
 
             <button type="submit"
-                    class="w-full h-11 bg-[#0f2540] hover:bg-[#0b1c31] text-white text-sm font-bold rounded-lg shadow-md transition">
+                    class="w-full h-11 bg-[#0f2540] hover:bg-[#0b1c31] text-white text-sm font-bold rounded-xl shadow-md transition">
                 Daftar
             </button>
 

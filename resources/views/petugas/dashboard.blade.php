@@ -2,10 +2,11 @@
 
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- Title Section -->
     <div>
-        <p class="text-sm font-bold text-blue-800">Halo, {{ explode(' ', auth()->user()->name)[0] }} 👋</p>
-        <h1 class="text-2xl font-black text-slate-900">Panel Petugas Sarana</h1>
-        <p class="text-sm text-slate-500">Verifikasi reservasi, kelola laporan kendala, dan atur status fasilitas.</p>
+        <h1 class="text-3xl font-black text-slate-900">Halo, {{ explode(' ', auth()->user()->name)[0] }} 👋</h1>
+        <p class="text-sm text-slate-500 mt-1">Verifikasi reservasi, kelola laporan kendala, dan atur status fasilitas.</p>
     </div>
 
     <!-- Statistik Ringkas (klik untuk buka halaman terkait) -->
@@ -108,6 +109,7 @@
                 </svg>
             </div>
         </a>
+
         <!-- Kartu 3: Fasilitas -->
         <a href="{{ route('petugas.fasilitas.index') }}"
            class="group relative bg-white rounded-2xl p-6 shadow border border-slate-100 overflow-hidden cursor-pointer hover:shadow-lg transition duration-300 flex flex-col justify-between min-h-[220px]">

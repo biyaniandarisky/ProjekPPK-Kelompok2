@@ -32,18 +32,6 @@
         </a>
     </div>
 
-    <!-- Tab: Reservasi Saya / Laporan Saya -->
-    <div class="grid grid-cols-2 gap-2 mb-5">
-        <div class="flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 border-b-2 border-b-blue-900 rounded-t-2xl text-xs font-black text-slate-900">
-            Reservasi Saya
-            <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 text-[10px]">{{ $counts['all'] }}</span>
-        </div>
-        <a href="{{ route('pengguna.laporan.index') }}"
-            class="flex items-center justify-center gap-2 py-3 bg-slate-100 hover:bg-slate-200 rounded-t-2xl text-xs font-black text-slate-500 transition">
-            Laporan Saya
-            <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px]">{{ $totalLaporan }}</span>
-        </a>
-    </div>
 
     <!-- Filter Status -->
     @php

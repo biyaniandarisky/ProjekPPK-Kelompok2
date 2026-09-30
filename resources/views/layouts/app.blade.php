@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-    
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -35,34 +35,75 @@
         [x-cloak] { display: none !important; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 flex flex-col min-h-screen font-sans antialiased" 
-      x-data="{ 
+<body class="bg-slate-50 text-slate-900 flex flex-col min-h-screen font-sans antialiased"
+      x-data="{
           showErrorModal: {{ $errors->any() ? 'true' : 'false' }}
       }">
 
     <!-- Navbar -->
     <header class="bg-white text-slate-900 border-b border-slate-200 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-            <a href="{{ route('landing') }}" class="font-extrabold text-sm sm:text-base tracking-tight text-slate-900">Reservasi Kampus</a>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
 
-            <nav class="flex items-center gap-2 text-xs font-bold">
-                <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Cari Fasilitas</a>
+            {{-- Logo --}}
+            <a href="{{ route('landing') }}" class="flex items-center gap-2 shrink-0">
+                <div class="w-9 h-9 rounded-lg bg-[#0f2540] flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 11h.01M15 11h.01"/>
+                    </svg>
+                </div>
+                <span class="font-extrabold text-base tracking-tight text-[#0f2540]">
+                    Reservasi<span class="text-emerald-600">Kampus</span>
+                </span>
+            </a>
+
+            <nav class="flex items-center gap-1.5 text-xs font-bold">
+
+                {{-- Menu "Cari Fasilitas" HANYA untuk pengunjung (belum login) --}}
+                @guest
+                    <a href="{{ route('landing') }}" class="hidden sm:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">Cari Fasilitas</a>
+                @endguest
 
                 @auth
                     @if(auth()->user()->role === 'pengguna' || (!auth()->user()->isAdmin() && !auth()->user()->isPetugas()))
-                        <a href="{{ route('pengguna.reservasi.index') }}" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
+                        {{-- ===== MENU PENGGUNA ===== --}}
+                        <a href="{{ route('landing') }}"
+                           class="hidden sm:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('landing') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                            Cari Fasilitas
+                        </a>
+                        <a href="{{ route('pengguna.dashboard') }}"
+                           class="px-3 py-2 rounded-lg transition {{ request()->routeIs('pengguna.dashboard') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                            Dashboard
+                        </a>
+                        <a href="{{ route('pengguna.reservasi.index') }}"
+                           class="px-3 py-2 rounded-lg transition {{ request()->routeIs('pengguna.reservasi.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' }}">
                             Reservasi Saya
                         </a>
-                        <a href="{{ route('pengguna.laporan.index') }}" class="px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
+                        <a href="{{ route('pengguna.laporan.index') }}"
+                           class="px-3 py-2 rounded-lg transition {{ request()->routeIs('pengguna.laporan.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' }}">
                             Laporan Saya
                         </a>
-                        <a href="{{ route('pengguna.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">
-                            Panel Mahasiswa
-                        </a>
+
                     @elseif(auth()->user()->isAdmin())
-                        <a href="{{ route('admin.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Panel Admin</a>
+                        {{-- ===== MENU ADMIN (tanpa Cari Fasilitas) ===== --}}
+                        <a href="{{ route('admin.dashboard') }}"
+                           class="px-3 py-2 rounded-lg transition {{ request()->routeIs('admin.dashboard') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                            Dashboard
+                        </a>
+                        <a href="{{ route('admin.rekap.okupansi') }}"
+                           class="hidden md:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('admin.rekap.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                            Rekap
+                        </a>
+                        <a href="{{ route('admin.dashboard') }}#kelola-fasilitas"
+                           class="hidden md:inline-block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition">
+                            Fasilitas
+                        </a>
+
                     @elseif(auth()->user()->isPetugas())
-                        {{-- Tab jalur pintas: Reservasi / Laporan / Fasilitas --}}
+                        {{-- ===== MENU PETUGAS (tanpa Cari Fasilitas) ===== --}}
+                        <a href="{{ route('petugas.dashboard') }}"
+                           class="px-3 py-2 rounded-lg transition {{ request()->routeIs('petugas.dashboard') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' }}">
+                            Dashboard
+                        </a>
                         <a href="{{ route('petugas.reservasi.index') }}"
                            class="hidden md:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('petugas.reservasi.*') ? 'bg-slate-100 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
                             Reservasi
@@ -76,7 +117,7 @@
                             Fasilitas
                         </a>
 
-                        {{-- Lonceng notifikasi: menuju halaman Notifikasi --}}
+                        {{-- Lonceng notifikasi --}}
                         <a href="{{ route('petugas.notifikasi.index') }}" aria-label="Notifikasi"
                            class="relative p-2 rounded-lg transition {{ request()->routeIs('petugas.notifikasi.*') ? 'bg-slate-100 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
                             <svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -88,21 +129,30 @@
                                 </span>
                             @endif
                         </a>
-
-                        {{-- Sapaan nama petugas --}}
-                        <span class="hidden lg:inline-block px-2 text-slate-600 font-semibold">
-                            Halo, {{ explode(' ', auth()->user()->name)[0] }}
-                        </span>
-
-                        <a href="{{ route('petugas.dashboard') }}" class="px-3.5 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Panel Petugas</a>
                     @endif
 
-                    <form action="{{ route('logout') }}" method="POST" class="inline">
+                    {{-- ===== IDENTITAS USER ===== --}}
+                    <div class="hidden lg:flex items-center gap-2 pl-2 ml-1 border-l border-slate-200">
+                        <span class="w-7 h-7 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-black text-[10px] shrink-0">
+                            {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                        </span>
+                        <span class="text-slate-700 font-semibold max-w-[120px] truncate">
+                            {{ explode(' ', auth()->user()->name)[0] }}
+                        </span>
+                    </div>
+
+                    {{-- ===== TOMBOL LOGOUT ===== --}}
+                    <form action="{{ route('logout') }}" method="POST" class="inline ml-3">
                         @csrf
-                        <button type="submit" class="px-3.5 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-lg transition">Keluar</button>
+                        <button type="submit" class="px-3 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-lg transition flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                            <span class="hidden sm:inline">Keluar</span>
+                        </button>
                     </form>
                 @else
-                    {{-- Pengunjung (belum login) --}}
+                    {{-- ===== PENGUNJUNG (BELUM LOGIN) ===== --}}
                     <a href="{{ route('login') }}" class="px-4 py-2 border border-slate-300 text-slate-800 hover:bg-slate-50 rounded-lg transition">Login</a>
                     <a href="{{ route('register') }}" class="px-4 py-2 bg-[#0f2540] hover:bg-[#0b1c31] text-white rounded-lg transition">Register</a>
                 @endauth
@@ -182,8 +232,7 @@
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="showErrorModal = false"></div>
         <div class="flex min-h-full items-center justify-center p-4 text-center">
             <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all w-full max-w-md p-6 border border-rose-100 space-y-4">
-                
-                <!-- Header Modal Error -->
+
                 <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
                     <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -196,7 +245,6 @@
                     </div>
                 </div>
 
-                <!-- Isi Pesan Error -->
                 <div class="space-y-2 py-2">
                     @foreach($errors->all() as $err)
                         <div class="flex items-start gap-2 text-xs font-semibold text-rose-800 bg-rose-50 p-3 rounded-xl border border-rose-100">
@@ -206,7 +254,6 @@
                     @endforeach
                 </div>
 
-                <!-- Tombol Tutup -->
                 <div class="flex justify-end pt-2 border-t border-slate-100">
                     <button @click="showErrorModal = false" type="button" class="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow transition">
                         Saya Mengerti
