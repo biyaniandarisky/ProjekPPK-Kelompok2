@@ -20,7 +20,7 @@ Route::post('/pesan/intent', [LandingController::class, 'bookingIntent'])
 
 /*
 |--------------------------------------------------------------------------
-| Autentikasi (Login & Registrasi)
+| Autentikasi (Login, Registrasi, Logout)
 |--------------------------------------------------------------------------
 */
 Route::middleware('guest')->group(function () {
@@ -46,14 +46,22 @@ Route::middleware(['auth', 'role:pengguna'])
 
         Route::get('/dashboard', [PenggunaController::class, 'dashboard'])->name('dashboard');
 
+        // Reservasi
         Route::get('/reservasi', [PenggunaController::class, 'reservasiIndex'])->name('reservasi.index');
         Route::get('/reservasi/buat', [PenggunaController::class, 'createReservasi'])->name('reservasi.create');
         Route::post('/reservasi', [PenggunaController::class, 'storeReservasi'])->name('reservasi.store');
         Route::post('/reservasi/{id}/batal', [PenggunaController::class, 'cancelReservasi'])->name('reservasi.cancel');
 
+        // Laporan Kendala
         Route::get('/laporan', [PenggunaController::class, 'laporanIndex'])->name('laporan.index');
         Route::get('/laporan/buat', [PenggunaController::class, 'createLaporan'])->name('laporan.create');
         Route::post('/laporan', [PenggunaController::class, 'storeLaporan'])->name('laporan.store');
+
+        // Notifikasi
+        Route::get('/notifikasi', [PenggunaController::class, 'indexNotifikasi'])->name('notifikasi.index');
+
+        Route::get('/reservasi/{id}/cetak', [PenggunaController::class, 'cetakReservasi'])
+            ->name('reservasi.cetak');
     });
 
 /*
@@ -72,13 +80,16 @@ Route::middleware(['auth', 'role:petugas'])
         Route::get('/fasilitas', [PetugasController::class, 'fasilitasIndex'])->name('fasilitas.index');
         Route::get('/notifikasi', [PetugasController::class, 'notifikasiIndex'])->name('notifikasi.index');
 
+        // Aksi Reservasi
         Route::post('/reservasi/{id}/approve', [PetugasController::class, 'approveReservasi'])->name('reservasi.approve');
         Route::post('/reservasi/{id}/reject', [PetugasController::class, 'rejectReservasi'])->name('reservasi.reject');
         Route::post('/reservasi/{id}/emergency-cancel', [PetugasController::class, 'emergencyCancel'])->name('reservasi.emergency_cancel');
 
+        // Aksi Laporan Kendala
         Route::post('/laporan/{id}/process', [PetugasController::class, 'processLaporan'])->name('laporan.process');
         Route::post('/laporan/{id}/resolve', [PetugasController::class, 'resolveLaporan'])->name('laporan.resolve');
 
+        // Status Fasilitas oleh Petugas
         Route::post('/fasilitas/{id}/status', [PetugasController::class, 'updateFacilityStatus'])->name('fasilitas.status');
     });
 
@@ -95,17 +106,13 @@ Route::middleware(['auth', 'role:admin'])
         // Dashboard
         Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
 
-        // ====== REKAP (YANG TADI BIKIN ERROR) ======
-        Route::get('/rekap/okupansi', [AdminController::class, 'rekapOkupansi'])
-            ->name('rekap.okupansi');
-        Route::get('/rekap/kerusakan', [AdminController::class, 'rekapKerusakan'])
-            ->name('rekap.kerusakan');
+        // Rekap & Laporan
+        Route::get('/rekap/okupansi', [AdminController::class, 'rekapOkupansi'])->name('rekap.okupansi');
+        Route::get('/rekap/kerusakan', [AdminController::class, 'rekapKerusakan'])->name('rekap.kerusakan');
+        Route::get('/rekap/export/{format}', [AdminController::class, 'exportFullData'])->name('rekap.export');
 
-        // Export rekap (csv / excel / pdf)
-        Route::get('/rekap/export/{format}', [AdminController::class, 'exportFullData'])
-            ->name('rekap.export');
-
-        // ====== Req 14 & 15: Pendaftaran Akun Direct ======
+        // Kelola Pengguna & Verifikasi (Diperlengkap dengan Index)
+        Route::get('/users', [AdminController::class, 'usersIndex'])->name('users.index'); // [TAMBAHAN] Tampil daftar user
         Route::post('/register-user', [AdminController::class, 'storeUserByAdmin'])->name('users.store');
         Route::post('/users/{id}/verify', [AdminController::class, 'verifyUser'])->name('users.verify');
         Route::post('/users/{id}/reject', [AdminController::class, 'rejectUser'])->name('users.reject');
@@ -113,8 +120,10 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('/petugas', [AdminController::class, 'storePetugas'])->name('petugas.store');
         Route::post('/pengguna', [AdminController::class, 'storePenggunaDirect'])->name('pengguna.store');
 
-        // ====== Req 16: Kelola Fasilitas ======
+        // Kelola Fasilitas (Diperlengkap dengan Index & Destroy)
+        Route::get('/facilities', [AdminController::class, 'facilitiesIndex'])->name('facilities.index'); // [TAMBAHAN] Tampil daftar fasilitas
         Route::post('/facilities', [AdminController::class, 'storeFacility'])->name('facilities.store');
         Route::put('/facilities/{id}', [AdminController::class, 'updateFacility'])->name('facilities.update');
+        Route::delete('/facilities/{id}', [AdminController::class, 'destroyFacility'])->name('facilities.destroy'); // [TAMBAHAN] Hapus fasilitas
         Route::post('/facilities/{id}/toggle', [AdminController::class, 'toggleFacilityStatus'])->name('facilities.toggle');
     });

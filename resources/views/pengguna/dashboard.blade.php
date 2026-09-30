@@ -1,165 +1,239 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+<div class="space-y-4">
 
-    <!-- Title Section -->
-    <div>
-        <h1 class="text-3xl font-black text-slate-900">Halo, {{ explode(' ', auth()->user()->name)[0] }} 👋</h1>
-        <p class="text-sm text-slate-500 mt-1">Kelola reservasi dan laporan kendala fasilitas kamu di sini.</p>
-    </div>
+    <!-- HERO BANNER (FULL WIDTH / SAMPAI PINGGIR LAYAR) -->
+    <div class="w-full bg-[#0f2540] text-white py-6 px-4 sm:px-6 lg:px-8 shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            
+            <!-- Left Text Section -->
+            <div class="space-y-1">
+                <p class="text-xs font-extrabold text-blue-300 tracking-wider uppercase">
+                    Civitas Akademika Kampus &bull; Layanan Sarana &amp; Prasarana
+                </p>
 
-    <!-- Statistik Ringkas (klik untuk buka halaman terkait) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <a href="{{ route('pengguna.reservasi.index') }}"
-           class="group flex items-center gap-4 rounded-2xl p-5 shadow bg-gradient-to-br from-amber-400 to-amber-500 text-white hover:shadow-lg hover:-translate-y-0.5 transition">
-            <div class="w-11 h-11 rounded-xl bg-white/25 flex items-center justify-center shrink-0">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-            </div>
-            <div class="min-w-0">
-                <p class="text-xs font-bold text-amber-50">Total Reservasi</p>
-                <p class="text-3xl font-black leading-tight">{{ $stats['total_reservasi'] ?? 0 }}</p>
-            </div>
-            <svg class="w-4 h-4 ml-auto text-amber-100 group-hover:translate-x-1 transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-            </svg>
-        </a>
+                <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                    Halo, {{ auth()->user()->nama ?? auth()->user()->name ?? 'Pengguna' }} 👋
+                </h1>
 
-        <a href="{{ route('pengguna.reservasi.index', ['status' => 'approved']) }}"
-           class="group flex items-center gap-4 rounded-2xl p-5 shadow bg-gradient-to-br from-blue-600 to-blue-800 text-white hover:shadow-lg hover:-translate-y-0.5 transition">
-            <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.6-3A12 12 0 0112 2.9 12 12 0 013.4 6 12 12 0 003 9c0 5.6 3.8 10.3 9 11.6 5.2-1.3 9-6 9-11.6 0-1-.1-2-.4-3z"/>
-                </svg>
-            </div>
-            <div class="min-w-0">
-                <p class="text-xs font-bold text-blue-100">Disetujui</p>
-                <p class="text-3xl font-black leading-tight">{{ $stats['disetujui'] ?? 0 }}</p>
-            </div>
-            <svg class="w-4 h-4 ml-auto text-blue-100 group-hover:translate-x-1 transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-            </svg>
-        </a>
-
-        <a href="{{ route('pengguna.reservasi.index', ['status' => 'pending']) }}"
-           class="group flex items-center gap-4 rounded-2xl p-5 shadow bg-gradient-to-br from-emerald-500 to-emerald-700 text-white hover:shadow-lg hover:-translate-y-0.5 transition">
-            <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/>
-                </svg>
-            </div>
-            <div class="min-w-0">
-                <p class="text-xs font-bold text-emerald-50">Menunggu</p>
-                <p class="text-3xl font-black leading-tight">{{ $stats['menunggu'] ?? 0 }}</p>
-            </div>
-            <svg class="w-4 h-4 ml-auto text-emerald-100 group-hover:translate-x-1 transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-            </svg>
-        </a>
-
-        <a href="{{ route('pengguna.laporan.index') }}"
-           class="group flex items-center gap-4 rounded-2xl p-5 shadow bg-gradient-to-br from-rose-500 to-rose-700 text-white hover:shadow-lg hover:-translate-y-0.5 transition">
-            <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 014-4h0a4 4 0 014 4v2m-8 0h8m-8 0H5a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4"/>
-                </svg>
-            </div>
-            <div class="min-w-0">
-                <p class="text-xs font-bold text-rose-50">Total Laporan</p>
-                <p class="text-3xl font-black leading-tight">{{ $stats['total_laporan'] ?? 0 }}</p>
-            </div>
-            <svg class="w-4 h-4 ml-auto text-rose-100 group-hover:translate-x-1 transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-            </svg>
-        </a>
-    </div>
-
-    <!-- Kartu Menu Aksi Utama -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Kartu 1: Ajukan Reservasi Baru -->
-        <a href="{{ route('landing') }}"
-            class="group relative bg-white rounded-2xl p-6 shadow border border-slate-100 overflow-hidden cursor-pointer hover:shadow-lg transition duration-300 flex flex-col justify-between min-h-[220px]">
-            <div class="absolute inset-0 bg-gradient-to-r from-blue-950/90 to-blue-900/80 z-10"></div>
-            <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80"
-                 alt="Fasilitas Kampus"
-                 class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500">
-
-            <div class="relative z-20 text-white space-y-2">
-                <span class="bg-blue-500/30 text-blue-200 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border border-blue-400/30">
-                    Layanan Fasilitas
-                </span>
-                <h2 class="text-xl font-black leading-snug">Ajukan Reservasi Baru</h2>
-                <p class="text-xs text-slate-200 max-w-sm">Lihat jadwal ketersediaan slot 30 menit di katalog fasilitas, pilih slot yang kosong, lalu isi formulir reservasi.</p>
+                <p class="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed pt-0.5">
+                    Selamat datang di portal reservasi kampus. Pantau permohonan yang sedang ditinjau dan tindak lanjut aduan fasilitas secara efisien.
+                </p>
             </div>
 
-            <div class="relative z-20 pt-4 flex items-center text-xs font-bold text-blue-200 group-hover:text-white transition">
-                <span>Lihat Jadwal Fasilitas</span>
-                <svg class="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                </svg>
-            </div>
-        </a>
+            <!-- Right Action Buttons -->
+            <div class="flex items-center gap-2.5 shrink-0 pt-2 md:pt-0">
+                <a href="{{ route('pengguna.reservasi.create') }}" 
+                   class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow transition">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Pinjam Ruangan
+                </a>
 
-        <!-- Kartu 2: Laporkan Kendala Fasilitas -->
-        <a href="{{ route('pengguna.laporan.create') }}"
-            class="group relative bg-white rounded-2xl p-6 shadow border border-slate-100 overflow-hidden cursor-pointer hover:shadow-lg transition duration-300 flex flex-col justify-between min-h-[220px]">
-            <div class="absolute inset-0 bg-gradient-to-r from-rose-950/90 to-rose-900/80 z-10"></div>
-            <img src="https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80"
-                 alt="Perbaikan Fasilitas"
-                 class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500">
-
-            <div class="relative z-20 text-white space-y-2">
-                <span class="bg-rose-500/30 text-rose-200 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border border-rose-400/30">
-                    Layanan Pengaduan
-                </span>
-                <h2 class="text-xl font-black leading-snug">Laporkan Kendala Fasilitas</h2>
-                <p class="text-xs text-slate-200 max-w-sm">AC mati, proyektor rusak, atau fasilitas kurang layak? Laporkan kendalamu agar tim teknis segera memperbaiki.</p>
+                <a href="{{ route('pengguna.laporan.create') }}" 
+                   class="inline-flex items-center justify-center px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow transition">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Laporkan Fasilitas
+                </a>
             </div>
 
-            <div class="relative z-20 pt-4 flex items-center text-xs font-bold text-rose-200 group-hover:text-white transition">
-                <span>Isi Form Laporan</span>
-                <svg class="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                </svg>
-            </div>
-        </a>
-    </div>
-
-    <!-- Reservasi Terakhir -->
-    <div class="bg-white rounded-2xl shadow border border-slate-100 p-6 space-y-4">
-        <div class="flex items-center justify-between">
-            <h2 class="font-black text-slate-900 text-base">Reservasi Terakhir</h2>
-            <a href="{{ route('pengguna.reservasi.index') }}" class="text-xs font-bold text-blue-900 hover:text-blue-700">Lihat Semua →</a>
         </div>
+    </div>
 
-        <div class="space-y-2">
-            @forelse($myReservations->take(3) as $r)
-                <div class="flex flex-wrap items-center justify-between gap-2 border border-slate-100 rounded-xl p-3 text-xs">
-                    <div class="space-y-1">
-                        <p class="font-black text-slate-900">{{ $r->facility->nama_fasilitas ?? '-' }}</p>
-                        <p class="text-slate-500">
-                            {{ \Carbon\Carbon::parse($r->tanggal)->format('d M Y') }} •
-                            {{ \Carbon\Carbon::parse($r->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($r->end_time)->format('H:i') }} WIB
-                        </p>
+    <!-- MAIN CONTENT CONTAINER -->
+    <div class="max-w-7xl mx-auto px-4 py-2 space-y-4">
+
+        <!-- RINGKASAN AKTIVITAS SAYA (KARTU COMPACT HEIGHT) -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            
+            <!-- Card 1: Total Reservasi -->
+            <div class="bg-blue-600 rounded-xl p-3 text-white flex flex-col justify-between h-20 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-blue-100 tracking-wide uppercase">Total Reservasi</span>
+                    <div class="p-1 bg-white/10 rounded-lg">
+                        <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
                     </div>
-                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold
-                        @if($r->status === 'approved') bg-emerald-100 text-emerald-700
-                        @elseif($r->status === 'rejected') bg-rose-100 text-rose-700
-                        @elseif($r->status === 'cancelled') bg-slate-200 text-slate-600
-                        @else bg-amber-100 text-amber-700 @endif">
-                        @if($r->status === 'approved') Disetujui
-                        @elseif($r->status === 'rejected') Ditolak
-                        @elseif($r->status === 'cancelled') Dibatalkan
-                        @else Menunggu Persetujuan @endif
-                    </span>
                 </div>
-            @empty
-                <p class="text-center text-slate-400 text-xs py-6">Belum ada riwayat reservasi.</p>
-            @endforelse
+
+                <div class="flex items-end justify-between">
+                    <span class="text-2xl font-black text-white leading-none">{{ $stats['total_reservasi'] ?? 0 }}</span>
+                    <a href="{{ route('pengguna.reservasi.index') }}" class="text-[10px] font-extrabold text-white bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg transition">
+                        Lihat &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <!-- Card 2: Menunggu Review -->
+            <div class="bg-amber-500 rounded-xl p-3 text-white flex flex-col justify-between h-20 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-amber-100 tracking-wide uppercase">Menunggu Review</span>
+                    <div class="p-1 bg-white/10 rounded-lg">
+                        <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="flex items-end justify-between">
+                    <span class="text-2xl font-black text-white leading-none">{{ $stats['menunggu'] ?? 0 }}</span>
+                    <a href="{{ route('pengguna.reservasi.index', ['status' => 'pending']) }}" class="text-[10px] font-extrabold text-white bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg transition">
+                        Lihat &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <!-- Card 3: Disetujui -->
+            <div class="bg-emerald-600 rounded-xl p-3 text-white flex flex-col justify-between h-20 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-emerald-100 tracking-wide uppercase">Disetujui</span>
+                    <div class="p-1 bg-white/10 rounded-lg">
+                        <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="flex items-end justify-between">
+                    <span class="text-2xl font-black text-white leading-none">{{ $stats['disetujui'] ?? 0 }}</span>
+                    <a href="{{ route('pengguna.reservasi.index', ['status' => 'approved']) }}" class="text-[10px] font-extrabold text-white bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg transition">
+                        Lihat &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <!-- Card 4: Riwayat Kendala -->
+            <div class="bg-rose-600 rounded-xl p-3 text-white flex flex-col justify-between h-20 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-rose-100 tracking-wide uppercase">Riwayat Kendala</span>
+                    <div class="p-1 bg-white/10 rounded-lg">
+                        <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="flex items-end justify-between">
+                    <span class="text-2xl font-black text-white leading-none">{{ $stats['total_laporan'] ?? 0 }}</span>
+                    <a href="{{ route('pengguna.laporan.index') }}" class="text-[10px] font-extrabold text-white bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg transition">
+                        Lihat &rarr;
+                    </a>
+                </div>
+            </div>
+
         </div>
-    </div>
+
+        <!-- SEBELAHAN: TABEL RESERVASI TERAKHIR & LAPORAN TERAKHIR (DIPERBESAR & LEGA) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+            <!-- KIRI: 3 RESERVASI TERAKHIR -->
+            <div class="bg-white rounded-xl shadow-xs border border-slate-200 p-4 space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <h2 class="font-black text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                        3 Reservasi Terakhir
+                    </h2>
+
+                    <a href="{{ route('pengguna.reservasi.index') }}" class="text-xs font-bold text-blue-800 hover:text-blue-600 transition">Lihat Semua &rarr;</a>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($myReservations->take(3) as $r)
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="py-2.5 pr-2">
+                                        <p class="font-extrabold text-slate-900 text-xs sm:text-sm truncate max-w-[260px] leading-snug">
+                                            {{ $r->facility->nama_fasilitas ?? '-' }}
+                                        </p>
+
+                                        <p class="text-xs text-slate-500 font-medium mt-0.5">
+                                            📅 {{ \Carbon\Carbon::parse($r->tanggal)->format('d M Y') }} &bull;
+                                            ⏰ {{ \Carbon\Carbon::parse($r->start_time)->format('H:i') }}-{{ \Carbon\Carbon::parse($r->end_time)->format('H:i') }} WIB
+                                        </p>
+                                    </td>
+
+                                    <td class="py-2.5 text-right whitespace-nowrap align-middle">
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider
+                                            @if($r->status === 'approved') bg-emerald-100 text-emerald-800 border border-emerald-200
+                                            @elseif($r->status === 'rejected') bg-rose-100 text-rose-800 border border-rose-200
+                                            @elseif($r->status === 'cancelled') bg-slate-200 text-slate-700 border border-slate-300
+                                            @else bg-amber-100 text-amber-800 border border-amber-200 @endif">
+                                            @if($r->status === 'approved') Disetujui
+                                            @elseif($r->status === 'rejected') Ditolak
+                                            @elseif($r->status === 'cancelled') Dibatalkan
+                                            @else Menunggu @endif
+                                        </span>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="2" class="text-center text-slate-400 text-xs py-6 font-medium">
+                                        Belum ada riwayat reservasi.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- KANAN: 3 LAPORAN TERAKHIR -->
+            <div class="bg-white rounded-xl shadow-xs border border-slate-200 p-4 space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <h2 class="font-black text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-600"></span>
+                        3 Laporan Kendala Terakhir
+                    </h2>
+
+                    <a href="{{ route('pengguna.laporan.index') }}" class="text-xs font-bold text-rose-800 hover:text-rose-600 transition">Lihat Semua &rarr;</a>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse(($myReports ?? collect())->take(3) as $l)
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="py-2.5 pr-2">
+                                        <p class="font-extrabold text-slate-900 text-xs sm:text-sm truncate max-w-[260px] leading-snug">
+                                            {{ $l->kategori_laporan ?? $l->deskripsi ?? 'Laporan Kendala' }}
+                                        </p>
+
+                                        <p class="text-xs text-slate-500 font-medium mt-0.5">
+                                            📍 {{ $l->facility->nama_fasilitas ?? 'Fasilitas Kampus' }} &bull;
+                                            📅 {{ \Carbon\Carbon::parse($l->created_at)->format('d M Y') }}
+                                        </p>
+                                    </td>
+
+                                    <td class="py-2.5 text-right whitespace-nowrap align-middle">
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider
+                                            @if($l->status_laporan === 'selesai' || $l->status === 'resolved') bg-emerald-100 text-emerald-800 border border-emerald-200
+                                            @elseif($l->status_laporan === 'proses' || $l->status === 'in_progress') bg-blue-100 text-blue-800 border border-blue-200
+                                            @else bg-amber-100 text-amber-800 border border-amber-200 @endif">
+                                            {{ ucfirst($l->status_laporan ?? $l->status ?? 'Menunggu') }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="2" class="text-center text-slate-400 text-xs py-6 font-medium">
+                                        Belum ada riwayat laporan kendala.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
 
     </div>
+
+</div>
 @endsection

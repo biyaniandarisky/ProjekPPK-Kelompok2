@@ -6,11 +6,11 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', config('app.name', 'Reservasi Kampus'))</title>
 
-    <!-- Google Font: Roboto -->
+    <!-- Google Font: Plus Jakarta Sans / Roboto -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -18,12 +18,8 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Roboto', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
                     },
-                    colors: {
-                        navy: '#1e3a8a',
-                        brand: '#10b981',
-                    }
                 }
             }
         }
@@ -35,12 +31,10 @@
         [x-cloak] { display: none !important; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 flex flex-col min-h-screen font-sans antialiased"
-      x-data="{
-          showErrorModal: {{ $errors->any() ? 'true' : 'false' }}
-      }">
+<body class="bg-slate-50 text-slate-900 flex flex-col min-h-screen font-sans antialiased" 
+      x-data="{ showErrorModal: {{ $errors->any() ? 'true' : 'false' }} }">
 
-    <!-- Navbar -->
+    <!-- NAVBAR HEADER -->
     <header class="bg-white text-slate-900 border-b border-slate-200 sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
 
@@ -83,8 +77,26 @@
                             Laporan Saya
                         </a>
 
+                        {{-- Lonceng Notifikasi Dinamis (Pengguna) --}}
+                        @php
+                            $userNotifCount = \App\Models\Notification::where('user_id', auth()->id())
+                                ->where('is_read', false)
+                                ->count();
+                        @endphp
+                        <a href="{{ route('pengguna.notifikasi.index') }}" aria-label="Notifikasi"
+                        class="relative p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition mx-0.5">
+                            <svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                            @if($userNotifCount > 0)
+                                <span class="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center">
+                                    {{ $userNotifCount > 9 ? '9+' : $userNotifCount }}
+                                </span>
+                            @endif
+                        </a>
+
                     @elseif(auth()->user()->isAdmin())
-                        {{-- ===== MENU ADMIN (tanpa Cari Fasilitas) ===== --}}
+                        {{-- ===== MENU ADMIN ===== --}}
                         <a href="{{ route('admin.dashboard') }}"
                            class="px-3 py-2 rounded-lg transition {{ request()->routeIs('admin.dashboard') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' }}">
                             Dashboard
@@ -99,7 +111,7 @@
                         </a>
 
                     @elseif(auth()->user()->isPetugas())
-                        {{-- ===== MENU PETUGAS (tanpa Cari Fasilitas) ===== --}}
+                        {{-- ===== MENU PETUGAS ===== --}}
                         <a href="{{ route('petugas.dashboard') }}"
                            class="px-3 py-2 rounded-lg transition {{ request()->routeIs('petugas.dashboard') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100' }}">
                             Dashboard
@@ -117,13 +129,13 @@
                             Fasilitas
                         </a>
 
-                        {{-- Lonceng notifikasi --}}
+                        {{-- Lonceng Notifikasi Petugas --}}
                         <a href="{{ route('petugas.notifikasi.index') }}" aria-label="Notifikasi"
                            class="relative p-2 rounded-lg transition {{ request()->routeIs('petugas.notifikasi.*') ? 'bg-slate-100 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
                             <svg style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                             </svg>
-                            @if($notifCount > 0)
+                            @if(isset($notifCount) && $notifCount > 0)
                                 <span class="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center">
                                     {{ $notifCount > 9 ? '9+' : $notifCount }}
                                 </span>
@@ -134,10 +146,10 @@
                     {{-- ===== IDENTITAS USER ===== --}}
                     <div class="hidden lg:flex items-center gap-2 pl-2 ml-1 border-l border-slate-200">
                         <span class="w-7 h-7 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-black text-[10px] shrink-0">
-                            {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                            {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
                         </span>
                         <span class="text-slate-700 font-semibold max-w-[120px] truncate">
-                            {{ explode(' ', auth()->user()->name)[0] }}
+                            {{ explode(' ', auth()->user()->name ?? 'User')[0] }}
                         </span>
                     </div>
 
@@ -160,7 +172,7 @@
         </div>
     </header>
 
-    <!-- Flash Alerts (Sukses & Info saja) -->
+    <!-- Flash Alerts -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
         @if(session('success'))
             <div class="p-4 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold mb-3">
@@ -232,7 +244,6 @@
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="showErrorModal = false"></div>
         <div class="flex min-h-full items-center justify-center p-4 text-center">
             <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all w-full max-w-md p-6 border border-rose-100 space-y-4">
-
                 <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
                     <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,7 +270,6 @@
                         Saya Mengerti
                     </button>
                 </div>
-
             </div>
         </div>
     </div>
