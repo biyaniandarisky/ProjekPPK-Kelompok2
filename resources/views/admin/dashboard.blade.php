@@ -1,419 +1,369 @@
-@extends('layouts.app')
+{{-- resources/views/admin/dashboard.blade.php  (SATU FILE, semua halaman) --}}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Panel Admin - KampusReserve</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak]{display:none!important}</style>
+</head>
+@php
+    $pendingCount = count($pendingUsers);
+    $input = 'w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500';
+    $th    = 'px-6 py-4';
+    $badge = ['aktif' => 'bg-emerald-100 text-emerald-700', 'dalam_perbaikan' => 'bg-amber-100 text-amber-700', 'nonaktif' => 'bg-rose-100 text-rose-700'];
+    $barColors = ['Kerusakan' => 'bg-red-500', 'Kebersihan' => 'bg-amber-500', 'Fasilitas' => 'bg-blue-600', 'Lainnya' => 'bg-emerald-500'];
+    $statusLabel = ['aktif' => 'Aktif', 'dalam_perbaikan' => 'Maintenance', 'nonaktif' => 'Nonaktif'];
+    $maxOcc = max(1, max($occupancy ?: [1]));
+    $menu = [
+        'dashboard' => ['🏠', 'Dashboard',            'Dashboard Admin'],
+        'petugas'   => ['👤', 'Akun Petugas',         'Akun Petugas'],
+        'verifikasi'=> ['✅', 'Verifikasi Pengguna',  'Verifikasi Pengguna'],
+        'fasilitas' => ['🏢', 'Data Fasilitas',       'Data Fasilitas'],
+        'rekap'     => ['📊', 'Rekapitulasi & Ekspor','Rekapitulasi & Ekspor'],
+    ];
+    $stats = [
+        ['TOTAL PENGGUNA', $totalUsers, 'border-blue-600'],
+        ['RESERVASI BULAN INI', $reservationsThisMonth, 'border-emerald-500'],
+        ['LAPORAN BULAN INI', $reportsThisMonth, 'border-amber-500'],
+        ['PENDING VERIFIKASI', $pendingCount, 'border-red-500'],
+    ];
+@endphp
+<body class="bg-slate-100 text-slate-800 antialiased"
+      x-data="{
+          page: '{{ request('page', session('page', 'dashboard')) }}',
+          sidebar: false,
+          modal: false, editing: null,
+          blank: {nama_fasilitas:'', tipe:'Ruangan', lokasi:'', kapasitas:'', deskripsi:'', status:'aktif'},
+          form: {},
+          init() { this.form = {...this.blank} },
+          newFacility() { this.editing = null; this.form = {...this.blank}; this.modal = true },
+          editFacility(f) { this.editing = f.id; this.form = {...f}; this.modal = true },
+          get facilityAction() { return this.editing ? '{{ url('admin/facilities') }}/' + this.editing : '{{ route('admin.facilities.store') }}' }
+      }">
 
-@section('content')
-<main class="max-w-7xl mx-auto p-6 md:p-8 space-y-8 bg-slate-50/50 min-h-screen"
-      x-data="{ activeTab: 'overview' }">
+<div class="flex min-h-screen">
 
-    {{-- ============ HEADER WELCOME BAR ============ --}}
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
-        <div>
-            <h1 class="text-xl font-bold text-slate-800 tracking-tight">Selamat Datang, Administrator 👋</h1>
-            <p class="text-xs text-slate-500 mt-1">Kelola data pengguna, fasilitas, dan pantau rekapitulasi sistem KampusReserve.</p>
-        </div>
-        <div class="flex items-center gap-3">
-            <div class="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-xs font-semibold flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
-                System Status: Active
+    {{-- ================= SIDEBAR ================= --}}
+    <aside class="fixed inset-y-0 left-0 z-40 w-64 bg-[#0b2447] text-slate-200 flex flex-col transition-transform lg:translate-x-0"
+           :class="sidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'">
+        <div class="h-16 px-6 flex items-center gap-3 border-b border-white/10 text-white font-bold">⚙️ Panel Admin</div>
+        <nav class="flex-1 p-3 space-y-1.5 text-sm">
+            @foreach($menu as $key => [$icon, $label])
+                <button @click="page = '{{ $key }}'; sidebar = false"
+                        :class="page === '{{ $key }}' ? 'bg-blue-600 text-white font-semibold' : 'hover:bg-white/10'"
+                        class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-left">
+                    <span>{{ $icon }}</span>{{ $label }}
+                </button>
+            @endforeach
+        </nav>
+        <form method="POST" action="{{ route('logout') }}" class="border-t border-white/10 p-3">
+            @csrf
+            <button class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm hover:bg-white/10 text-left">🚪 Logout</button>
+        </form>
+    </aside>
+
+    {{-- ================= MAIN ================= --}}
+    <div class="flex-1 lg:ml-64 min-w-0">
+
+        {{-- Topbar --}}
+        <header class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30">
+            <div class="flex items-center gap-3">
+                <button class="lg:hidden text-xl" @click="sidebar = !sidebar">☰</button>
+                @foreach($menu as $key => [$icon, $label, $title])
+                    <h2 x-show="page === '{{ $key }}'" x-cloak class="font-bold">{{ $title }}</h2>
+                @endforeach
             </div>
-            <div class="text-xs font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200/60">
-                📅 {{ now()->translatedFormat('d F Y') }}
-            </div>
-        </div>
-    </div>
-
-    {{-- ============ STAT CARDS ============ --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        {{-- Card Total Pengguna --}}
-        <div class="relative bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between overflow-hidden group hover:shadow-md transition">
-            <div class="absolute -right-4 -bottom-4 opacity-5 text-blue-600 group-hover:scale-110 transition-transform">
-                <svg class="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-            </div>
-            <div>
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">TOTAL PENGGUNA</span>
-                    <span class="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    </span>
-                </div>
-                <div class="text-4xl font-extrabold text-slate-800 tracking-tight">{{ $totalUsers }}</div>
-            </div>
-            <div class="mt-4 pt-3 border-t border-slate-100 text-[11px] font-medium text-slate-500">
-                Terdaftar di dalam sistem
-            </div>
-        </div>
-
-        {{-- Card Total Reservasi --}}
-        <div class="relative bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between overflow-hidden group hover:shadow-md transition">
-            <div class="absolute -right-4 -bottom-4 opacity-5 text-emerald-600 group-hover:scale-110 transition-transform">
-                <svg class="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
-            </div>
-            <div>
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">TOTAL RESERVASI</span>
-                    <span class="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    </span>
-                </div>
-                <div class="text-4xl font-extrabold text-slate-800 tracking-tight">{{ $totalReservations }}</div>
-            </div>
-            <div class="mt-4 pt-3 border-t border-slate-100 text-[11px] font-medium text-emerald-600">
-                Aktif & riwayat penggunaan
-            </div>
-        </div>
-
-        {{-- Card Total Laporan --}}
-        <div class="relative bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between overflow-hidden group hover:shadow-md transition">
-            <div class="absolute -right-4 -bottom-4 opacity-5 text-rose-600 group-hover:scale-110 transition-transform">
-                <svg class="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-            </div>
-            <div>
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">LAPORAN KERUSAKAN</span>
-                    <span class="p-2 bg-rose-50 text-rose-600 rounded-lg">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                    </span>
-                </div>
-                <div class="text-4xl font-extrabold text-slate-800 tracking-tight">{{ $totalReports }}</div>
-            </div>
-            <div class="mt-4 pt-3 border-t border-slate-100 text-[11px] font-medium text-rose-600">
-                Perlu tindakan dari petugas
-            </div>
-        </div>
-    </div>
-
-    {{-- ============ TAB NAVIGATION ============ --}}
-    <div class="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-1 text-xs font-semibold">
-        <button @click="activeTab = 'overview'"
-                :class="activeTab === 'overview' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'"
-                class="px-5 py-3 rounded-xl transition-all duration-200 flex items-center gap-2">
-            <span>📊</span> Rekap & Ekspor Data
-        </button>
-
-        <button @click="activeTab = 'verify'"
-                :class="activeTab === 'verify' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'"
-                class="px-5 py-3 rounded-xl transition-all duration-200 flex items-center gap-2 relative">
-            <span>✅</span> Verifikasi Akun
-            @if(count($pendingUsers) > 0)
-                <span class="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm animate-pulse">{{ count($pendingUsers) }}</span>
-            @endif
-        </button>
-
-        <button @click="activeTab = 'addUser'"
-                :class="activeTab === 'addUser' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'"
-                class="px-5 py-3 rounded-xl transition-all duration-200 flex items-center gap-2">
-            <span>👤</span> Tambah Akun Baru
-        </button>
-
-        <button @click="activeTab = 'facilities'"
-                :class="activeTab === 'facilities' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'"
-                class="px-5 py-3 rounded-xl transition-all duration-200 flex items-center gap-2">
-            <span>🏢</span> Kelola Data Fasilitas
-        </button>
-    </div>
-
-    {{-- ============ CONTAINER PANEL ============ --}}
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6">
-
-        {{-- ============ PANEL 1: OVERVIEW / REKAP ============ --}}
-        <div x-show="activeTab === 'overview'" x-cloak class="space-y-6">
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-800">Rekap Okupansi & Laporan Kerusakan</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Ringkasan penggunaan fasilitas serta ekspor data lengkap.</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <a href="{{ route('admin.rekap.export', array_merge(['format' => 'csv'], request()->query())) }}"
-                       class="px-4 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-200 transition">
-                        CSV
-                    </a>
-                    <a href="{{ route('admin.rekap.export', array_merge(['format' => 'excel'], request()->query())) }}"
-                       class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition">
-                        Excel
-                    </a>
-                    <a href="{{ route('admin.rekap.export', array_merge(['format' => 'pdf'], request()->query())) }}"
-                       class="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition">
-                        PDF
-                    </a>
-                </div>
-            </div>
-
-            {{-- Filter Tanggal --}}
-            <form method="GET" action="{{ route('admin.dashboard') }}"
-                  class="bg-slate-50/80 p-4 rounded-xl border border-slate-200/80 flex flex-wrap items-center justify-between gap-4 text-xs">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="font-bold text-slate-700">Periode:</span>
-                    <input type="date" name="start_date" value="{{ request('start_date') }}"
-                           class="px-3 py-1.5 border border-slate-200 rounded-lg bg-white">
-                    <span class="text-slate-400">s/d</span>
-                    <input type="date" name="end_date" value="{{ request('end_date') }}"
-                           class="px-3 py-1.5 border border-slate-200 rounded-lg bg-white">
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg font-bold hover:bg-blue-700 transition">
-                        Terapkan
-                    </button>
-                    @if(request('start_date') || request('end_date'))
-                        <a href="{{ route('admin.dashboard') }}" class="text-rose-600 font-semibold hover:underline ml-1">Reset</a>
+            <div class="flex items-center gap-4">
+                <button @click="page = 'verifikasi'" class="relative text-xl">🔔
+                    @if($pendingCount > 0)
+                        <span class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full grid place-items-center">{{ $pendingCount }}</span>
                     @endif
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <span class="text-slate-400 text-[11px] mr-1">Preset:</span>
-                    <a href="{{ route('admin.dashboard', ['start_date' => now()->subDays(7)->format('Y-m-d'), 'end_date' => now()->format('Y-m-d')]) }}"
-                       class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100">1 Minggu</a>
-                    <a href="{{ route('admin.dashboard', ['start_date' => now()->subMonth()->format('Y-m-d'), 'end_date' => now()->format('Y-m-d')]) }}"
-                       class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100">1 Bulan</a>
-                    <a href="{{ route('admin.dashboard', ['start_date' => now()->subYear()->format('Y-m-d'), 'end_date' => now()->format('Y-m-d')]) }}"
-                       class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100">1 Tahun</a>
-                </div>
-            </form>
-
-            {{-- Tabel Rekap --}}
-            <div class="overflow-x-auto rounded-xl border border-slate-200/80">
-                <table class="w-full text-left text-xs">
-                    <thead>
-                        <tr class="bg-slate-50/80 text-slate-500 border-b border-slate-200/80 uppercase text-[10px] font-bold tracking-wider">
-                            <th class="py-3.5 px-4">Fasilitas</th>
-                            <th class="py-3.5 px-4">Tipe</th>
-                            <th class="py-3.5 px-4">Lokasi</th>
-                            <th class="py-3.5 px-4">Status</th>
-                            <th class="py-3.5 px-4">Total Reservasi</th>
-                            <th class="py-3.5 px-4">Total Laporan</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse($facilities as $f)
-                            <tr class="hover:bg-slate-50/50 transition">
-                                <td class="py-3 px-4 font-semibold text-slate-800">{{ $f->nama_fasilitas }}</td>
-                                <td class="py-3 px-4 text-slate-500">{{ $f->tipe }}</td>
-                                <td class="py-3 px-4 text-slate-500">{{ $f->lokasi }}</td>
-                                <td class="py-3 px-4">
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold
-                                        {{ $f->status === 'aktif' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200' }}">
-                                        {{ ucfirst($f->status) }}
-                                    </span>
-                                </td>
-                                <td class="py-3 px-4 font-bold text-blue-700">{{ $f->reservations_count ?? 0 }} kali</td>
-                                <td class="py-3 px-4 font-bold text-rose-700">{{ $f->reports_count ?? 0 }} laporan</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="py-8 text-center text-slate-400">Belum ada data fasilitas.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                </button>
+                <div class="w-10 h-10 rounded-full bg-red-500 text-white font-bold grid place-items-center">{{ strtoupper(substr(auth()->user()->name ?? 'A', 0, 1)) }}</div>
             </div>
-        </div>
+        </header>
 
-        {{-- ============ PANEL 2: VERIFIKASI AKUN ============ --}}
-        <div x-show="activeTab === 'verify'" x-cloak class="space-y-6">
-            <div class="border-b border-slate-100 pb-4">
-                <h2 class="text-lg font-bold text-slate-800">Permintaan Verifikasi Akun Pengguna</h2>
-                <p class="text-xs text-slate-500 mt-0.5">Daftar pengguna baru yang memerlukan persetujuan administrator.</p>
-            </div>
+        <main class="p-6 lg:p-9">
 
-            <div class="overflow-x-auto rounded-xl border border-slate-200/80">
-                <table class="w-full text-left text-xs">
-                    <thead>
-                        <tr class="bg-slate-50/80 text-slate-500 border-b border-slate-200/80 uppercase text-[10px] font-bold tracking-wider">
-                            <th class="py-3.5 px-4">Nama Lengkap</th>
-                            <th class="py-3.5 px-4">Email</th>
-                            <th class="py-3.5 px-4">NIP / NIM</th>
-                            <th class="py-3.5 px-4">KTM / KTP</th>
-                            <th class="py-3.5 px-4 text-right">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse($pendingUsers as $user)
-                            <tr class="hover:bg-slate-50/50 transition">
-                                <td class="py-3 px-4 font-semibold text-slate-800">{{ $user->name }}</td>
-                                <td class="py-3 px-4 text-slate-500">{{ $user->email }}</td>
-                                <td class="py-3 px-4 text-slate-500 font-mono">{{ $user->nip ?? '-' }}</td>
-                                <td class="py-3 px-4">
-                                    @if($user->ktm_path)
-                                        <a href="{{ route('admin.users.ktm', $user->id) }}" target="_blank"
-                                           class="text-blue-700 font-bold hover:underline">Lihat berkas</a>
-                                    @else
-                                        <span class="text-slate-400">-</span>
-                                    @endif
-                                </td>
-                                <td class="py-3 px-4 text-right">
-                                    <div class="flex justify-end gap-2">
-                                        <form action="{{ route('admin.users.verify', $user->id) }}" method="POST">
-                                            @csrf
-                                            <button class="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition">Setujui</button>
+            @if(session('success'))
+                <div class="mb-5 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{{ session('success') }}</div>
+            @endif
+            @if($errors->any())
+                <div class="mb-5 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">{{ $errors->first() }}</div>
+            @endif
+
+            {{-- ============ PANEL: DASHBOARD ============ --}}
+            <section x-show="page === 'dashboard'" x-cloak>
+                <h1 class="text-3xl font-extrabold tracking-tight">Statistik Sistem</h1>
+                <p class="text-slate-500 mt-1 mb-7">Rekapitulasi keseluruhan aktivitas sistem</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+                    @foreach($stats as [$label, $value, $border])
+                        <div class="bg-white rounded-2xl p-6 border-l-4 {{ $border }} shadow-sm">
+                            <div class="text-xs font-semibold text-slate-500 tracking-wide">{{ $label }}</div>
+                            <div class="mt-3 text-4xl font-extrabold text-[#0b2447]">{{ $value }}</div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
+                    <div class="bg-white rounded-2xl p-6 shadow-sm">
+                        <h3 class="font-bold mb-6">📈 Okupansi Fasilitas (Minggu Ini)</h3>
+                        <div class="flex items-end justify-between gap-4 h-56">
+                            @foreach($occupancy as $day => $count)
+                                <div class="flex-1 flex flex-col items-center justify-end h-full gap-2">
+                                    <div class="w-full bg-blue-600 rounded-t-lg" style="height: {{ round($count / $maxOcc * 100) }}%" title="{{ $count }} reservasi"></div>
+                                    <span class="text-xs text-slate-500">{{ $day }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-sm">
+                        <h3 class="font-bold mb-5">🔧 Frekuensi Kerusakan</h3>
+                        <div class="space-y-5">
+                            @forelse($damageFreq as $kategori => $persen)
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1.5"><span>{{ $kategori }}</span><span class="font-bold">{{ $persen }}%</span></div>
+                                    <div class="h-2.5 rounded-full bg-slate-100"><div class="h-full rounded-full {{ $barColors[$kategori] ?? 'bg-slate-500' }}" style="width: {{ $persen }}%"></div></div>
+                                </div>
+                            @empty
+                                <p class="text-sm text-slate-400">Belum ada laporan kerusakan.</p>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {{-- ============ PANEL: AKUN PETUGAS ============ --}}
+            <section x-show="page === 'petugas'" x-cloak>
+                <h1 class="text-3xl font-extrabold tracking-tight">Manajemen Akun Petugas</h1>
+                <p class="text-slate-500 mt-1 mb-7">Daftarkan akun petugas baru</p>
+
+                <form action="{{ route('admin.petugas.store') }}" method="POST"
+                      class="bg-white rounded-2xl shadow-sm p-7 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                    @csrf
+                    <input type="hidden" name="page" value="petugas">
+                    <div><label class="block text-sm font-semibold mb-1.5">Nama Petugas <span class="text-red-500">*</span></label>
+                        <input name="name" required placeholder="Nama lengkap" class="{{ $input }}"></div>
+                    <div><label class="block text-sm font-semibold mb-1.5">NIP <span class="text-red-500">*</span></label>
+                        <input name="nim_nip" required placeholder="Nomor induk petugas" class="{{ $input }}"></div>
+                    <div><label class="block text-sm font-semibold mb-1.5">Email <span class="text-red-500">*</span></label>
+                        <input type="email" name="email" required placeholder="email@kampus.ac.id" class="{{ $input }}"></div>
+                    <div><label class="block text-sm font-semibold mb-1.5">No. HP</label>
+                        <input name="no_hp" placeholder="08xxxxxxxxxx" class="{{ $input }}"></div>
+                    <div><label class="block text-sm font-semibold mb-1.5">Unit / Divisi</label>
+                        <select name="unit" class="{{ $input }}">@foreach(['Sarpras','IT','Kebersihan','Keamanan'] as $u)<option>{{ $u }}</option>@endforeach</select></div>
+                    <div><label class="block text-sm font-semibold mb-1.5">Password Awal <span class="text-red-500">*</span></label>
+                        <input type="password" name="password" required minlength="8" placeholder="min. 8 karakter" class="{{ $input }}"></div>
+                    <div class="md:col-span-2 flex justify-end">
+                        <button class="px-6 py-3 bg-[#0b2447] text-white text-sm font-semibold rounded-xl hover:bg-[#12306a] transition">Daftarkan Petugas</button>
+                    </div>
+                </form>
+
+                <div class="bg-white rounded-2xl shadow-sm mt-6 overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+                            <tr><th class="{{ $th }}">Nama</th><th class="{{ $th }}">NIP</th><th class="{{ $th }}">Email</th><th class="{{ $th }}">Unit</th><th class="{{ $th }}">Status</th><th class="{{ $th }}">Aksi</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($petugas as $p)
+                                <tr>
+                                    <td class="{{ $th }} font-medium">{{ $p->name }}</td>
+                                    <td class="{{ $th }}">{{ $p->nim_nip }}</td>
+                                    <td class="{{ $th }}">{{ $p->email }}</td>
+                                    <td class="{{ $th }}">{{ $p->unit }}</td>
+                                    <td class="{{ $th }}"><span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Aktif</span></td>
+                                    <td class="{{ $th }}">
+                                        <form action="{{ route('admin.petugas.destroy', $p->id) }}" method="POST" onsubmit="return confirm('Hapus akun ini?')">
+                                            @csrf @method('DELETE')
+                                            <button class="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600">Hapus</button>
                                         </form>
-                                        <form action="{{ route('admin.users.reject', $user->id) }}" method="POST">
-                                            @csrf
-                                            <button class="px-3 py-1.5 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition">Tolak</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="py-8 text-center text-slate-400">
-                                    <div class="flex flex-col items-center gap-1">
-                                        <span class="text-2xl">✨</span>
-                                        <span>Tidak ada antrean verifikasi akun saat ini.</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="6" class="px-6 py-10 text-center text-slate-400">Belum ada akun petugas.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
-        {{-- ============ PANEL 3: TAMBAH AKUN BARU ============ --}}
-        <div x-show="activeTab === 'addUser'" x-cloak class="space-y-6">
-            <div class="border-b border-slate-100 pb-4">
-                <h2 class="text-lg font-bold text-slate-800">Registrasi Akun Baru (Direct)</h2>
-                <p class="text-xs text-slate-500 mt-0.5">Tambah akun Petugas, Dosen, Mahasiswa, atau Staf langsung tanpa verifikasi.</p>
-            </div>
+            {{-- ============ PANEL: VERIFIKASI PENGGUNA ============ --}}
+            <section x-show="page === 'verifikasi'" x-cloak>
+                <h1 class="text-3xl font-extrabold tracking-tight">Verifikasi Akun Pengguna</h1>
+                <p class="text-slate-500 mt-1 mb-7">Verifikasi registrasi mandiri pengguna baru</p>
 
-            <form action="{{ route('admin.users.store') }}" method="POST"
-                  class="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-                @csrf
+                <div class="bg-white rounded-2xl shadow-sm overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+                            <tr><th class="{{ $th }}">Nama</th><th class="{{ $th }}">NIM/NIP</th><th class="{{ $th }}">Email</th><th class="{{ $th }}">Role</th><th class="{{ $th }}">Berkas</th><th class="{{ $th }}">Aksi</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($pendingUsers as $u)
+                                <tr>
+                                    <td class="{{ $th }} font-medium">{{ $u->name }}</td>
+                                    <td class="{{ $th }}">{{ $u->nim_nip ?? '-' }}</td>
+                                    <td class="{{ $th }}">{{ $u->email }}</td>
+                                    <td class="{{ $th }}">{{ ucfirst($u->role) }}</td>
+                                    <td class="{{ $th }}">
+                                        @if($u->ktm_path)
+                                            <a href="{{ route('admin.users.ktm', $u->id) }}" target="_blank" class="text-blue-600 font-semibold hover:underline">Lihat KTM/KTP</a>
+                                        @else <span class="text-slate-400">-</span> @endif
+                                    </td>
+                                    <td class="{{ $th }}">
+                                        <div class="flex gap-2">
+                                            <form action="{{ route('admin.users.verify', $u->id) }}" method="POST">@csrf
+                                                <button class="px-3 py-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg hover:bg-emerald-600">✓ Verifikasi</button></form>
+                                            <form action="{{ route('admin.users.reject', $u->id) }}" method="POST">@csrf
+                                                <button class="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600">✗ Tolak</button></form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="6" class="px-6 py-12 text-center text-slate-400">Tidak ada antrean verifikasi saat ini.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
-                <div class="space-y-1.5">
-                    <label class="block font-semibold text-slate-700">Nama Lengkap</label>
-                    <input type="text" name="name" placeholder="Masukkan nama lengkap" required
-                           class="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+            {{-- ============ PANEL: DATA FASILITAS ============ --}}
+            <section x-show="page === 'fasilitas'" x-cloak>
+                <div class="flex items-start justify-between gap-4 mb-7">
+                    <div>
+                        <h1 class="text-3xl font-extrabold tracking-tight">Data Master Fasilitas</h1>
+                        <p class="text-slate-500 mt-1">Kelola seluruh data fasilitas kampus</p>
+                    </div>
+                    <button @click="newFacility()" class="shrink-0 px-5 py-3 bg-[#0b2447] text-white text-sm font-semibold rounded-xl hover:bg-[#12306a]">+ Tambah Fasilitas</button>
                 </div>
 
-                <div class="space-y-1.5">
-                    <label class="block font-semibold text-slate-700">Role / Peran Akses</label>
-                    <select name="role" required
-                            class="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                        <option value="petugas">Petugas Fasilitas</option>
-                        <option value="mahasiswa">Mahasiswa</option>
-                        <option value="dosen">Dosen</option>
-                        <option value="staf">Staf Kampus</option>
-                    </select>
+                <div class="bg-white rounded-2xl shadow-sm overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+                            <tr><th class="{{ $th }}">Kode</th><th class="{{ $th }}">Nama</th><th class="{{ $th }}">Tipe</th><th class="{{ $th }}">Lokasi</th><th class="{{ $th }}">Kapasitas</th><th class="{{ $th }}">Status</th><th class="{{ $th }}">Aksi</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($facilities as $f)
+                                <tr>
+                                    <td class="{{ $th }}">F{{ str_pad($f->id, 3, '0', STR_PAD_LEFT) }}</td>
+                                    <td class="{{ $th }} font-medium">{{ $f->nama_fasilitas }}</td>
+                                    <td class="{{ $th }}">{{ $f->tipe }}</td>
+                                    <td class="{{ $th }}">{{ $f->lokasi }}</td>
+                                    <td class="{{ $th }}">{{ $f->kapasitas }}</td>
+                                    <td class="{{ $th }}"><span class="px-3 py-1 rounded-full text-xs font-semibold {{ $badge[$f->status] ?? $badge['nonaktif'] }}">{{ $statusLabel[$f->status] ?? $f->status }}</span></td>
+                                    <td class="{{ $th }}">
+                                        <div class="flex gap-2">
+                                            <button type="button" @click="editFacility({{ Js::from($f->only(['id','nama_fasilitas','tipe','lokasi','kapasitas','deskripsi','status'])) }})"
+                                                    class="px-3 py-1.5 border border-[#0b2447] text-xs font-semibold rounded-lg hover:bg-slate-50">Edit</button>
+                                            <form action="{{ route('admin.facilities.toggle', $f->id) }}" method="POST">@csrf
+                                                <button class="px-3 py-1.5 text-white text-xs font-semibold rounded-lg {{ $f->status === 'aktif' ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600' }}">
+                                                    {{ $f->status === 'aktif' ? 'Nonaktif' : 'Aktifkan' }}</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="7" class="px-6 py-12 text-center text-slate-400">Belum ada fasilitas terdaftar.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
+            </section>
 
-                <div class="space-y-1.5">
-                    <label class="block font-semibold text-slate-700">Alamat Email</label>
-                    <input type="email" name="email" placeholder="nama@kampus.ac.id" required
-                           class="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+            {{-- ============ PANEL: REKAPITULASI & EKSPOR ============ --}}
+            <section x-show="page === 'rekap'" x-cloak>
+                <h1 class="text-3xl font-extrabold tracking-tight">Rekapitulasi & Ekspor</h1>
+                <p class="text-slate-500 mt-1 mb-7">Rekap okupansi fasilitas dan frekuensi kerusakan</p>
+
+                <form method="GET" action="{{ route('admin.dashboard') }}"
+                      class="bg-white rounded-2xl shadow-sm p-7 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                    <input type="hidden" name="page" value="rekap">
+                    <div><label class="block text-sm font-semibold mb-1.5">Dari Tanggal</label>
+                        <input type="date" name="start_date" value="{{ request('start_date') }}" class="{{ $input }}"></div>
+                    <div><label class="block text-sm font-semibold mb-1.5">Sampai Tanggal</label>
+                        <input type="date" name="end_date" value="{{ request('end_date') }}" class="{{ $input }}"></div>
+                    <div><label class="block text-sm font-semibold mb-1.5">Fasilitas</label>
+                        <select name="facility_id" class="{{ $input }}">
+                            <option value="">Semua Fasilitas</option>
+                            @foreach($facilities as $f)
+                                <option value="{{ $f->id }}" @selected(request('facility_id') == $f->id)>{{ $f->nama_fasilitas }}</option>
+                            @endforeach
+                        </select></div>
+                    <div class="md:col-span-2 flex flex-wrap justify-end gap-3">
+                        <button type="submit" class="px-5 py-3 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700">Terapkan</button>
+                        @foreach(['csv' => '📄 Ekspor CSV', 'excel' => '📊 Ekspor Excel', 'pdf' => '📕 Ekspor PDF'] as $fmt => $label)
+                            <a href="{{ route('admin.rekap.export', array_merge(['format' => $fmt], request()->except('page'))) }}"
+                               class="px-5 py-3 text-sm font-semibold rounded-xl border-2 border-[#0b2447] {{ $fmt === 'pdf' ? 'bg-[#0b2447] text-white' : 'text-[#0b2447] hover:bg-slate-50' }}">{{ $label }}</a>
+                        @endforeach
+                    </div>
+                </form>
+
+                <div class="bg-white rounded-2xl shadow-sm mt-6 overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+                            <tr><th class="{{ $th }}">Fasilitas</th><th class="{{ $th }}">Total Reservasi</th><th class="{{ $th }}">Jam Terpakai</th><th class="{{ $th }}">Okupansi</th><th class="{{ $th }}">Kerusakan</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($rekap as $r)
+                                <tr>
+                                    <td class="{{ $th }} font-medium">{{ $r->nama_fasilitas }}</td>
+                                    <td class="{{ $th }}">{{ $r->reservations_count }}</td>
+                                    <td class="{{ $th }}">{{ $r->jam_terpakai }} jam</td>
+                                    <td class="{{ $th }}"><span class="px-3 py-1 rounded-full text-xs font-semibold {{ $r->okupansi >= 80 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700' }}">{{ $r->okupansi }}%</span></td>
+                                    <td class="{{ $th }}">{{ $r->reports_count }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="px-6 py-12 text-center text-slate-400">Tidak ada data pada periode ini.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
+            </section>
 
-                <div class="space-y-1.5">
-                    <label class="block font-semibold text-slate-700">NIP / NIM</label>
-                    <input type="text" name="nip_nim" placeholder="Nomor Identitas Utama"
-                           class="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                </div>
-
-                <div class="space-y-1.5">
-                    <label class="block font-semibold text-slate-700">No. HP / Unit Divisi</label>
-                    <input type="text" name="no_hp" placeholder="08xx-xxxx-xxxx / Divisi IT"
-                           class="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                </div>
-
-                <div class="space-y-1.5">
-                    <label class="block font-semibold text-slate-700">Unit / Divisi</label>
-                    <input type="text" name="unit" placeholder="Contoh: Fakultas Teknik"
-                           class="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                </div>
-
-                <div class="space-y-1.5 md:col-span-2">
-                    <label class="block font-semibold text-slate-700">Password Awal</label>
-                    <input type="password" name="password" placeholder="••••••••" required minlength="8"
-                           class="w-full p-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                    <p class="text-[10px] text-slate-400">Minimal 8 karakter.</p>
-                </div>
-
-                <div class="md:col-span-2 flex justify-end pt-2">
-                    <button type="submit"
-                            class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl transition shadow-md shadow-blue-500/20">
-                        Simpan Akun Baru
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        {{-- ============ PANEL 4: KELOLA FASILITAS ============ --}}
-        <div x-show="activeTab === 'facilities'" x-cloak class="space-y-6">
-            <div class="border-b border-slate-100 pb-4">
-                <h2 class="text-lg font-bold text-slate-800">Master Data & Status Fasilitas</h2>
-                <p class="text-xs text-slate-500 mt-0.5">Tambah fasilitas baru atau nonaktifkan fasilitas yang sedang tidak bisa dipinjam.</p>
-            </div>
-
-            {{-- Form Tambah Fasilitas --}}
-            <form action="{{ route('admin.facilities.store') }}" method="POST"
-                  class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs bg-slate-50/80 p-4 rounded-xl border border-slate-200/80">
-                @csrf
-                <input type="text" name="nama_fasilitas" placeholder="Nama Fasilitas" required
-                       class="p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-
-                <select name="tipe" required
-                        class="p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                    <option value="" disabled selected>Pilih Tipe</option>
-                    <option value="Ruangan">Ruangan</option>
-                    <option value="Laboratorium">Laboratorium</option>
-                    <option value="Olahraga">Olahraga</option>
-                    <option value="Fasilitas Umum">Fasilitas Umum</option>
-                </select>
-
-                <input type="text" name="lokasi" placeholder="Lokasi Gedung / Lantai" required
-                       class="p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-
-                <div class="flex gap-2">
-                    <input type="number" name="kapasitas" placeholder="Kapasitas" required min="1"
-                           class="p-2.5 bg-white border border-slate-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                    <button type="submit"
-                            class="bg-blue-600 text-white font-bold px-4 py-2.5 rounded-lg hover:bg-blue-700 transition shrink-0">
-                        + Tambah
-                    </button>
-                </div>
-            </form>
-
-            {{-- Tabel Fasilitas --}}
-            <div class="overflow-x-auto rounded-xl border border-slate-200/80">
-                <table class="w-full text-left text-xs">
-                    <thead>
-                        <tr class="bg-slate-50/80 text-slate-500 border-b border-slate-200/80 uppercase text-[10px] font-bold tracking-wider">
-                            <th class="py-3.5 px-4">Fasilitas</th>
-                            <th class="py-3.5 px-4">Tipe</th>
-                            <th class="py-3.5 px-4">Lokasi</th>
-                            <th class="py-3.5 px-4">Kapasitas</th>
-                            <th class="py-3.5 px-4">Status</th>
-                            <th class="py-3.5 px-4 text-right">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse($facilities as $f)
-                            <tr class="hover:bg-slate-50/50 transition">
-                                <td class="py-3 px-4 font-semibold text-slate-800">{{ $f->nama_fasilitas }}</td>
-                                <td class="py-3 px-4 text-slate-500">{{ $f->tipe }}</td>
-                                <td class="py-3 px-4 text-slate-500">{{ $f->lokasi }}</td>
-                                <td class="py-3 px-4 text-slate-500">{{ $f->kapasitas }}</td>
-                                <td class="py-3 px-4">
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1
-                                        {{ $f->status === 'aktif' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200' }}">
-                                        <span class="w-1.5 h-1.5 rounded-full {{ $f->status === 'aktif' ? 'bg-emerald-500' : 'bg-rose-500' }}"></span>
-                                        {{ ucfirst($f->status) }}
-                                    </span>
-                                </td>
-                                <td class="py-3 px-4 text-right">
-                                    <form action="{{ route('admin.facilities.toggle', $f->id) }}" method="POST" class="inline">
-                                        @csrf
-                                        <button class="text-xs font-bold px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-100 transition">
-                                            {{ $f->status === 'aktif' ? 'Nonaktifkan' : 'Aktifkan' }}
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="py-8 text-center text-slate-400">Belum ada fasilitas terdaftar.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
+        </main>
     </div>
-</main>
-@endsection
+</div>
+
+{{-- ================= MODAL TAMBAH / EDIT FASILITAS ================= --}}
+<div x-show="modal" x-cloak class="fixed inset-0 z-50 grid place-items-center p-4 bg-slate-900/50" @keydown.escape.window="modal = false">
+    <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" @click.outside="modal = false">
+        <div class="flex justify-between items-center px-7 py-5 border-b border-slate-100">
+            <h3 class="font-bold text-lg" x-text="editing ? 'Edit Fasilitas' : 'Tambah Fasilitas'"></h3>
+            <button @click="modal = false" class="text-slate-400 hover:text-slate-700 text-xl">✕</button>
+        </div>
+        <form :action="facilityAction" method="POST" enctype="multipart/form-data" class="p-7 grid grid-cols-1 md:grid-cols-2 gap-5">
+            @csrf
+            <input type="hidden" name="page" value="fasilitas">
+            <template x-if="editing"><input type="hidden" name="_method" value="PUT"></template>
+            <div><label class="block text-sm font-semibold mb-1.5">Nama Fasilitas</label>
+                <input name="nama_fasilitas" x-model="form.nama_fasilitas" required placeholder="contoh: Aula A" class="{{ $input }}"></div>
+            <div><label class="block text-sm font-semibold mb-1.5">Tipe</label>
+                <select name="tipe" x-model="form.tipe" class="{{ $input }}">
+                    @foreach(['Ruangan','Laboratorium','Olahraga','Fasilitas Umum'] as $t)<option>{{ $t }}</option>@endforeach
+                </select></div>
+            <div><label class="block text-sm font-semibold mb-1.5">Lokasi</label>
+                <input name="lokasi" x-model="form.lokasi" required placeholder="Gedung / Lantai" class="{{ $input }}"></div>
+            <div><label class="block text-sm font-semibold mb-1.5">Kapasitas</label>
+                <input type="number" min="1" name="kapasitas" x-model="form.kapasitas" required placeholder="jumlah orang" class="{{ $input }}"></div>
+            <div class="md:col-span-2"><label class="block text-sm font-semibold mb-1.5">Deskripsi</label>
+                <textarea name="deskripsi" x-model="form.deskripsi" rows="3" placeholder="Keterangan tambahan..." class="{{ $input }}"></textarea></div>
+            <div><label class="block text-sm font-semibold mb-1.5">Status</label>
+                <select name="status" x-model="form.status" class="{{ $input }}">
+                    <option value="aktif">Aktif</option><option value="dalam_perbaikan">Maintenance</option><option value="nonaktif">Nonaktif</option>
+                </select></div>
+            <div><label class="block text-sm font-semibold mb-1.5">Foto</label>
+                <input type="file" name="foto" accept="image/*" class="w-full text-sm border-2 border-dashed border-slate-200 rounded-xl p-3 bg-slate-50"></div>
+            <div class="md:col-span-2 flex justify-end gap-3 pt-2">
+                <button type="button" @click="modal = false" class="px-5 py-3 text-sm font-semibold rounded-xl border border-slate-200 hover:bg-slate-50">Batal</button>
+                <button class="px-6 py-3 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

@@ -126,4 +126,5 @@ Route::middleware(['auth', 'role:admin'])
         Route::put('/facilities/{id}', [AdminController::class, 'updateFacility'])->name('facilities.update');
         Route::delete('/facilities/{id}', [AdminController::class, 'destroyFacility'])->name('facilities.destroy'); // [TAMBAHAN] Hapus fasilitas
         Route::post('/facilities/{id}/toggle', [AdminController::class, 'toggleFacilityStatus'])->name('facilities.toggle');
+        Route::delete('/petugas/{id}', [AdminController::class, 'destroyPetugas'])->name('petugas.destroy');
     });
