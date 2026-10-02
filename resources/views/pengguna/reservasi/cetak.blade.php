@@ -112,7 +112,7 @@
                 <p class="font-bold text-slate-800">Petugas Pengelola Sarpras,</p>
                 <div class="h-14"></div>
                 <p class="font-black text-slate-900 underline">{{ $reservation->petugas->name ?? $reservation->petugas->nama ?? 'Tim Verifikasi Sarpras' }}</p>
-                <p class="text-[10px] text-slate-500">NIP. {{ $reservation->petugas->nip ?? '198803122015041002' }}</p>
+                <p class="text-[10px] text-slate-500">NIP. {{ $reservation->petugas->nim_nip ?? '—' }}</p>
             </div>
         </div>
 

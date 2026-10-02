@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use App\Models\Notification;
 
 class AuthController extends Controller
 {
@@ -21,15 +22,19 @@ class AuthController extends Controller
         return view('auth.index', ['tab' => 'register']);
     }
 
+    /**
+     * Proses Login.
+     */
     public function login(Request $request)
     {
         $credentials = $request->validate([
             'email'    => 'required|email',
-            'password' => 'required|min:6',
+            'password' => 'required|min:8',
         ], [
             'email.required'    => 'Email wajib diisi.',
+            'email.email'       => 'Format email tidak valid.',
             'password.required' => 'Password wajib diisi.',
-            'password.min'      => 'Password minimal 6 karakter.',
+            'password.min'      => 'Password minimal 8 karakter.',
         ]);
 
         if (Auth::attempt($credentials)) {
@@ -55,9 +60,13 @@ class AuthController extends Controller
                 }
             }
 
-            // Session baru setelah login (mencegah session fixation).
-            // Pilihan slot dari Pengunjung (booking_intent) ikut terbawa.
+            // Session baru setelah login (mencegah session fixation)
             $request->session()->regenerate();
+
+            // Redirect balik kalau ada parameter redirect
+            if ($request->filled('redirect')) {
+                return redirect($request->redirect);
+            }
 
             return match ($user->role) {
                 'admin'    => redirect()->route('admin.dashboard'),
@@ -72,6 +81,9 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Proses Registrasi Mandiri (hanya untuk pengguna).
+     */
     public function register(Request $request)
     {
         $validated = $request->validate([
@@ -96,7 +108,7 @@ class AuthController extends Controller
             'ktm.max'            => 'Ukuran berkas KTM / KTP maksimal 2 MB.',
         ]);
 
-        // KTM/KTP disimpan di disk PRIVATE (bukan public) karena berisi data pribadi
+        // KTM/KTP disimpan di disk PRIVATE
         $ktmPath = $request->hasFile('ktm')
             ? $request->file('ktm')->store('ktm', 'local')
             : null;
@@ -109,13 +121,15 @@ class AuthController extends Controller
             'ktm_path'          => $ktmPath,
             'password'          => Hash::make($validated['password']),
             'role'              => 'pengguna',
-            'status_verifikasi' => 'pending', // Menunggu verifikasi admin; belum bisa login
+            'status_verifikasi' => 'pending',
         ]);
 
-        // Tidak auto-login. Arahkan ke halaman Login + tampilkan notifikasi verifikasi.
         return redirect()->route('login')->with('pending_notice', true);
     }
 
+    /**
+     * Logout.
+     */
     public function logout(Request $request)
     {
         Auth::logout();

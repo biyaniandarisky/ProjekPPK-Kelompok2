@@ -6,14 +6,18 @@ use Illuminate\Http\Request;
 use App\Http\Requests\StoreReservationRequest;
 use App\Http\Requests\StoreReportRequest;
 use App\Services\ReservationService;
+use App\Services\ReportService;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\Report;
 use App\Models\Notification;
-use Carbon\Carbon; // TAMBAHAN: Untuk manipulasi tanggal & waktu slot
+use Carbon\Carbon;
 
 class PenggunaController extends Controller
 {
+    /* =========================================================
+     |  NOTIFIKASI
+     ========================================================= */
     public function indexNotifikasi(Request $request)
     {
         $userId = auth()->id();
@@ -24,9 +28,9 @@ class PenggunaController extends Controller
         if ($kat === 'reservasi') {
             $query->where('judul', 'LIKE', '%Reservasi%');
         } elseif ($kat === 'laporan') {
-            $query->where(function($q) {
+            $query->where(function ($q) {
                 $q->where('judul', 'LIKE', '%Laporan%')
-                ->orWhere('judul', 'LIKE', '%Perbaikan%');
+                  ->orWhere('judul', 'LIKE', '%Perbaikan%');
             });
         }
 
@@ -34,35 +38,33 @@ class PenggunaController extends Controller
 
         $totalCount = Notification::where('user_id', $userId)->count();
         $reservasiCount = Notification::where('user_id', $userId)->where('judul', 'LIKE', '%Reservasi%')->count();
-        $laporanCount = Notification::where('user_id', $userId)->where(function($q) {
+        $laporanCount = Notification::where('user_id', $userId)->where(function ($q) {
             $q->where('judul', 'LIKE', '%Laporan%')->orWhere('judul', 'LIKE', '%Perbaikan%');
         })->count();
 
         Notification::where('user_id', $userId)->where('is_read', false)->update(['is_read' => true]);
 
-        // PASTIKAN MENUNJUK KE FOLDER 'pengguna.notifikasi.index'
         return view('pengguna.notifikasi.index', compact('notifications', 'totalCount', 'reservasiCount', 'laporanCount'));
     }
-    
+
+    /* =========================================================
+     |  DASHBOARD
+     ========================================================= */
     public function dashboard(Request $request)
     {
         $userId = auth()->id();
         $selectedFacilityId = $request->query('facility_id');
 
-        // Tautan lama "?facility_id=" diarahkan ke halaman Formulir Reservasi
         if ($selectedFacilityId) {
             return redirect()->route('pengguna.reservasi.create', ['facility_id' => $selectedFacilityId]);
         }
 
-        // Tombol "Laporkan Masalah" di landing page (?lapor=1) diarahkan ke Formulir Laporan
         if ($request->boolean('lapor')) {
             return redirect()->route('pengguna.laporan.create');
         }
 
-        // Pilihan slot dari pop-up "Jadwal & Ketersediaan Slot" di landing page
         if ($request->session()->has('booking_intent')) {
             $intent = $request->session()->pull('booking_intent');
-
             return redirect()->route('pengguna.reservasi.create', [
                 'facility_id' => $intent['facility_id'] ?? null,
                 'tanggal'     => $intent['tanggal'] ?? null,
@@ -71,14 +73,10 @@ class PenggunaController extends Controller
             ]);
         }
 
-        // Ambil data reservasi & laporan pengguna
         $myReservations = Reservation::with('facility')->where('user_id', $userId)->latest()->get();
         $myReports = Report::with('facility')->where('user_id', $userId)->latest()->get();
-        
-        // Ambil seluruh fasilitas agar dapat dipilih di form/dropdown
-        $facilities = Facility::all();
+        $facilities = Facility::where('status', 'aktif')->orderBy('nama_fasilitas')->get();
 
-        // Hitung statistik
         $stats = [
             'total_reservasi' => $myReservations->count(),
             'disetujui'       => $myReservations->where('status', 'approved')->count(),
@@ -86,18 +84,59 @@ class PenggunaController extends Controller
             'total_laporan'   => $myReports->count(),
         ];
 
+        $reservasiTerdekat = Reservation::with('facility')
+            ->where('user_id', $userId)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where('tanggal', '>=', now()->toDateString())
+            ->orderBy('tanggal')
+            ->orderBy('start_time')
+            ->first();
+
+        $perluPerhatian = collect();
+
+        $sebentarLagi = Reservation::with('facility')
+            ->where('user_id', $userId)
+            ->where('status', 'approved')
+            ->where('tanggal', now()->toDateString())
+            ->whereBetween('start_time', [now()->format('H:i'), now()->addHours(2)->format('H:i')])
+            ->first();
+
+        if ($sebentarLagi) {
+            $perluPerhatian->push([
+                'pesan' => "Reservasi di {$sebentarLagi->facility->nama_fasilitas} akan dimulai dalam 2 jam.",
+                'aksi'  => 'Lihat Detail',
+                'link'  => route('pengguna.reservasi.index'),
+            ]);
+        }
+
+        $ditolak = Reservation::with('facility')
+            ->where('user_id', $userId)
+            ->where('status', 'rejected')
+            ->where('updated_at', '>=', now()->subDays(3))
+            ->first();
+
+        if ($ditolak) {
+            $perluPerhatian->push([
+                'pesan' => "Reservasi Anda di {$ditolak->facility->nama_fasilitas} ditolak.",
+                'aksi'  => 'Lihat',
+                'link'  => route('pengguna.reservasi.index', ['status' => 'rejected']),
+            ]);
+        }
+
         return view('pengguna.dashboard', compact(
-            'myReservations', 
-            'myReports', 
-            'facilities', 
-            'stats', 
-            'selectedFacilityId'
+            'myReservations',
+            'myReports',
+            'facilities',
+            'stats',
+            'selectedFacilityId',
+            'reservasiTerdekat',
+            'perluPerhatian'
         ));
     }
 
-    /**
-     * Halaman Formulir Reservasi
-     */
+    /* =========================================================
+     |  RESERVASI
+     ========================================================= */
     public function createReservasi(Request $request)
     {
         $facilities = Facility::where('status', 'aktif')->orderBy('nama_fasilitas')->get();
@@ -112,13 +151,11 @@ class PenggunaController extends Controller
                 ->with('info', 'Fasilitas ' . $facility->nama_fasilitas . ' sedang tidak dapat dipesan.');
         }
 
-        // Tanggal default: hari ini
         $tanggal = $request->query('tanggal');
         if (!$tanggal || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggal) || $tanggal < now()->toDateString()) {
             $tanggal = now()->toDateString();
         }
 
-        // Slot terpilih dari pop-up (opsional)
         $startTime = $request->query('start');
         $endTime   = $request->query('end');
         if (!$startTime || !preg_match('/^(0[7-9]|1[0-9]):(00|30)$/', $startTime)) {
@@ -137,45 +174,40 @@ class PenggunaController extends Controller
         ));
     }
 
-    /**
-     * API AJAX: Mengambil Ketersediaan Slot Jam Fasilitas
-     */
     public function getKetersediaanFasilitas(Request $request, $facilityId)
     {
         $tanggal = $request->query('tanggal', now()->toDateString());
 
-        // Ambil reservasi yang disetujui/ditinjau pada tanggal & fasilitas tersebut
-        $bookedReservations = Reservation::where('facility_id', $facilityId)
+        $booked = Reservation::where('facility_id', $facilityId)
             ->where('tanggal', $tanggal)
-            ->whereIn('status', ['approved', 'pending'])
+            ->whereIn('status', ['pending', 'approved'])
             ->get(['start_time', 'end_time']);
 
-        // Generate slot waktu 30 menitan dari 07:00 s/d 20:00
         $slots = [];
         $start = Carbon::createFromTimeString('07:00');
         $end   = Carbon::createFromTimeString('20:00');
+        $now   = now();
 
         while ($start < $end) {
             $slotStartStr = $start->format('H:i');
             $slotEnd = (clone $start)->addMinutes(30);
             $slotEndStr = $slotEnd->format('H:i');
 
-            // Cek apakah slot ini bentrok dengan reservasi yang ada
-            $isAvailable = true;
-            foreach ($bookedReservations as $res) {
-                $resStart = Carbon::createFromTimeString($res->start_time)->format('H:i');
-                $resEnd   = Carbon::createFromTimeString($res->end_time)->format('H:i');
+            $isBooked = $booked->contains(function ($res) use ($slotStartStr, $slotEndStr) {
+                $resStart = substr($res->start_time, 0, 5);
+                $resEnd   = substr($res->end_time, 0, 5);
+                return $slotStartStr < $resEnd && $slotEndStr > $resStart;
+            });
 
-                if ($slotStartStr >= $resStart && $slotStartStr < $resEnd) {
-                    $isAvailable = false;
-                    break;
-                }
-            }
+            $slotStartAt = Carbon::createFromFormat('Y-m-d H:i', "{$tanggal} {$slotStartStr}");
+            $isPast = $slotStartAt->lte($now);
 
             $slots[] = [
                 'start'        => $slotStartStr,
                 'end'          => $slotEndStr,
-                'is_available' => $isAvailable,
+                'is_available' => !$isBooked && !$isPast,
+                'is_booked'    => $isBooked,
+                'is_past'      => $isPast,
             ];
 
             $start->addMinutes(30);
@@ -187,23 +219,25 @@ class PenggunaController extends Controller
     public function reservasiIndex(Request $request)
     {
         $userId = auth()->id();
-        
-        // Ambil input pencarian tanggal jika ada
         $searchTanggal = $request->query('tanggal');
+        $activeStatus = $request->query('status', 'all');
 
-        $query = Reservation::with('facility')
-            ->where('user_id', $userId);
+        if (!in_array($activeStatus, ['all', 'pending', 'approved', 'rejected', 'cancelled'])) {
+            $activeStatus = 'all';
+        }
 
-        // Filter berdasarkan tanggal jika diisi
+        $query = Reservation::with('facility')->where('user_id', $userId);
+
         if ($searchTanggal) {
             $query->whereDate('tanggal', $searchTanggal);
         }
 
-        $myReservations = $query->orderByDesc('tanggal')
-            ->orderByDesc('id')
-            ->get();
+        if ($activeStatus !== 'all') {
+            $query->where('status', $activeStatus);
+        }
 
-        // Hitung counts tetap merujuk pada keseluruhan data user (atau bisa disesuaikan)
+        $myReservations = $query->orderByDesc('tanggal')->orderByDesc('id')->get();
+
         $allUserReservations = Reservation::where('user_id', $userId)->get();
         $counts = [
             'all'       => $allUserReservations->count(),
@@ -215,50 +249,46 @@ class PenggunaController extends Controller
 
         $totalLaporan = Report::where('user_id', $userId)->count();
 
-        $activeStatus = $request->query('status', 'all');
-        if (!in_array($activeStatus, ['all', 'pending', 'approved', 'rejected', 'cancelled'])) {
-            $activeStatus = 'all';
-        }
-
         return view('pengguna.reservasi.index', compact(
             'myReservations',
             'counts',
             'totalLaporan',
             'activeStatus',
-            'searchTanggal' // Kirim variabel tanggal ke view
+            'searchTanggal'
         ));
     }
 
     public function storeReservasi(StoreReservationRequest $request, ReservationService $service)
     {
-        $service->create($request->validated(), auth()->id());
-        return redirect()->route('pengguna.reservasi.index')->with('success', 'Pengajuan reservasi berhasil dikirim! Menunggu verifikasi petugas.');
-    }
+        try {
+            $service->create($request->validated(), auth()->id());
 
-    /**
-     * Pembatalan Reservasi (dengan Validasi Maksimal H-1 Jam)
-     */
-    public function cancelReservasi($id)
-    {
-        $reservation = Reservation::where('user_id', auth()->id())->findOrFail($id);
-
-        if (!in_array($reservation->status, ['pending', 'approved'])) {
-            return redirect()->route('pengguna.reservasi.index')->with('info', 'Reservasi ini sudah tidak dapat dibatalkan.');
-        }
-
-        // Pengecekan Batas Waktu Pembatalan (Maksimal H-1 Jam / 60 Menit sebelum jam mulai)
-        $tglStr = $reservation->tanggal instanceof Carbon ? $reservation->tanggal->format('Y-m-d') : $reservation->tanggal;
-        $startDateTime = Carbon::parse($tglStr . ' ' . $reservation->start_time);
-
-        if (now()->diffInMinutes($startDateTime, false) < 60) {
             return redirect()->route('pengguna.reservasi.index')
-                ->with('info', 'Pembatalan gagal. Batas waktu pembatalan adalah maksimal 1 jam sebelum jam mulai pemakaian.');
+                ->with('success', 'Pengajuan reservasi berhasil dikirim! Menunggu verifikasi petugas.');
+        } catch (\App\Exceptions\ReservationConflictException $e) {
+            return back()->withInput()->withErrors(['conflict' => $e->getMessage()]);
+        } catch (\App\Exceptions\InvalidSlotException $e) {
+            return back()->withInput()->withErrors(['slot' => $e->getMessage()]);
+        } catch (\Exception $e) {
+            return back()->withInput()->withErrors(['error' => 'Terjadi kesalahan: ' . $e->getMessage()]);
         }
-
-        $reservation->update(['status' => 'cancelled']);
-        return redirect()->route('pengguna.reservasi.index')->with('info', 'Reservasi berhasil dibatalkan.');
     }
 
+    public function cancelReservasi($id, ReservationService $service)
+    {
+        try {
+            $service->cancel($id, auth()->id());
+            return redirect()->route('pengguna.reservasi.index')
+                ->with('success', 'Reservasi berhasil dibatalkan.');
+        } catch (\App\Exceptions\InvalidSlotException $e) {
+            return redirect()->route('pengguna.reservasi.index')
+                ->with('error', $e->getMessage());
+        }
+    }
+
+    /* =========================================================
+     |  LAPORAN
+     ========================================================= */
     public function createLaporan(Request $request)
     {
         $facilities = Facility::all();
@@ -277,37 +307,30 @@ class PenggunaController extends Controller
         return view('pengguna.laporan.index', compact('myReports'));
     }
 
-    public function storeLaporan(StoreReportRequest $request)
+    public function storeLaporan(StoreReportRequest $request, ReportService $service)
     {
-        $data = $request->validated();
-        
-        $fotoPath = null;
-        if ($request->hasFile('foto')) {
-            $fotoPath = $request->file('foto')->store('reports', 'public');
+        try {
+            $data = $request->validated();
+
+            if ($request->hasFile('foto')) {
+                $data['foto'] = $request->file('foto')->store('reports', 'public');
+            }
+
+            $service->create($data, auth()->id());
+
+            return redirect()->route('pengguna.dashboard')
+                ->with('success', 'Laporan kendala berhasil dikirim ke tim petugas.');
+        } catch (\App\Exceptions\InvalidSlotException $e) {
+            return back()->withInput()->withErrors(['error' => $e->getMessage()]);
         }
-
-        Report::create([
-            'facility_id'      => $data['facility_id'],
-            'user_id'          => auth()->id(),
-            'kategori_laporan' => $data['kategori_laporan'],
-            'deskripsi'        => $data['deskripsi'],
-            'foto'             => $fotoPath,
-            'status_laporan'   => 'baru',
-        ]);
-
-        return redirect()->route('pengguna.dashboard')->with('success', 'Laporan kendala fasilitas berhasil dikirim ke tim petugas.');
     }
 
-    /**
-     * Cetak / Preview Dokumen Persetujuan Reservasi
-     */
     public function cetakReservasi($id)
     {
         $reservation = Reservation::with(['facility', 'user', 'petugas'])
             ->where('user_id', auth()->id())
             ->findOrFail($id);
 
-        // Hanya reservasi yang berstatus approved yang bisa dicetak
         if ($reservation->status !== 'approved') {
             return back()->with('info', 'Dokumen persetujuan hanya tersedia untuk reservasi yang telah disetujui.');
         }

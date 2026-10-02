@@ -1,45 +1,309 @@
 @extends('layouts.app')
 
+@section('title', 'Ajukan Reservasi')
+
 @section('content')
 @php
     $jamMulaiOptions   = ['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30'];
     $jamSelesaiOptions = ['07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00'];
 @endphp
 
-<div class="max-w-6xl mx-auto px-4 py-3 space-y-2.5"
-    x-data="{
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+     x-data="reservasiForm({
         facilityId: '{{ $facility->id ?? '' }}',
         tanggal: '{{ $tanggal }}',
         today: '{{ now()->toDateString() }}',
         besok: '{{ now()->addDay()->toDateString() }}',
         start: '{{ $startTime ?? '08:00' }}',
         end: '{{ $endTime ?? '08:30' }}',
+        availUrl: '{{ route('fasilitas.ketersediaan', ['id' => '__ID__']) }}',
+        createUrl: '{{ route('pengguna.reservasi.create') }}'
+     })">
+
+    {{-- BACK --}}
+    <a href="{{ route('landing') }}"
+       class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-blue-900 hover:bg-blue-50 text-slate-700 hover:text-blue-900 text-sm font-bold rounded-xl transition shadow-sm group mb-6">
+        <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Kembali ke Katalog
+    </a>
+
+    {{-- HEADER --}}
+    <div class="mb-6">
+        <h1 class="text-2xl md:text-3xl font-black text-slate-900">Ajukan Reservasi</h1>
+        <p class="text-sm text-slate-500 mt-1">Isi data di bawah untuk mengajukan reservasi fasilitas kampus.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+        {{-- KIRI: INFO FASILITAS --}}
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden lg:sticky lg:top-20">
+                @if($facility)
+                    <div class="h-40 bg-gradient-to-br from-blue-100 to-indigo-100 relative">
+                        @if($facility->foto_url)
+                            <img src="{{ $facility->foto_url }}" alt="{{ $facility->nama_fasilitas }}"
+                                 class="w-full h-full object-cover">
+                        @endif
+                        <span class="absolute top-3 left-3 px-2.5 py-1 bg-white/95 backdrop-blur text-[10px] font-bold text-slate-700 rounded-md shadow-sm uppercase tracking-wider">
+                            {{ $facility->tipe }}
+                        </span>
+                        <span class="absolute top-3 right-3 px-2.5 py-1 text-[10px] font-bold text-white rounded-md shadow-sm
+                            {{ $facility->status === 'aktif' ? 'bg-emerald-600' : 'bg-amber-500' }}">
+                            {{ $facility->status === 'aktif' ? 'Tersedia' : 'Perbaikan' }}
+                        </span>
+                    </div>
+
+                    <div class="p-5 space-y-4">
+                        <div>
+                            <h2 class="text-lg font-black text-slate-900 leading-snug">{{ $facility->nama_fasilitas }}</h2>
+                            <p class="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                {{ $facility->lokasi }}
+                            </p>
+                            <p class="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                Kapasitas {{ $facility->kapasitas }} orang
+                            </p>
+                        </div>
+
+                        @if($facility->deskripsi)
+                            <p class="text-xs text-slate-600 leading-relaxed">{{ $facility->deskripsi }}</p>
+                        @endif
+
+                        <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 space-y-1.5">
+                            <p class="text-xs font-black text-blue-900">Ketentuan Pemakaian</p>
+                            <ul class="list-disc list-inside text-xs text-slate-700 space-y-0.5">
+                                <li>Slot interval 30 menit (07.00–20.00 WIB)</li>
+                                <li>Durasi minimal 30 menit, maksimal 4 jam</li>
+                                <li>Minimal pemesanan 2 jam sebelum waktu mulai</li>
+                                <li>Diverifikasi oleh Petugas Sarpras</li>
+                            </ul>
+                        </div>
+                    </div>
+                @else
+                    <div class="p-5 text-xs text-slate-500">
+                        <h2 class="font-black text-slate-900 mb-2">Belum Ada Fasilitas Dipilih</h2>
+                        <p class="leading-relaxed">Silakan pilih fasilitas pada formulir di samping untuk memuat info ketersediaan slot.</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- KANAN: FORMULIR --}}
+        <div class="lg:col-span-3">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <form action="{{ route('pengguna.reservasi.store') }}" method="POST" class="space-y-5"
+                      x-data="{ submitting: false }" @submit="submitting = true">
+                    @csrf
+                    <input type="hidden" name="facility_id" :value="facilityId">
+                    <input type="hidden" name="tanggal" :value="tanggal">
+                    <input type="hidden" name="start_time" :value="start">
+                    <input type="hidden" name="end_time" :value="end">
+
+                    {{-- 1. FASILITAS --}}
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">
+                            1. Fasilitas yang Dipinjam <span class="text-rose-500">*</span>
+                        </label>
+                        <select @change="gantiFasilitas($event.target.value)"
+                                class="w-full h-11 px-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-900 focus:outline-none">
+                            <option value="">— Pilih Fasilitas Kampus —</option>
+                            @foreach($facilities as $f)
+                                <option value="{{ $f->id }}" {{ ($facility && $facility->id === $f->id) ? 'selected' : '' }}>
+                                    {{ $f->nama_fasilitas }} ({{ $f->lokasi }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- 2. TANGGAL --}}
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-sm font-bold text-slate-700">
+                                2. Tanggal Penggunaan <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="flex gap-1.5 text-xs">
+                                <button type="button" @click="tanggal = today"
+                                        :class="tanggal === today ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                        class="px-3 py-1 rounded-md font-bold transition">Hari Ini</button>
+                                <button type="button" @click="tanggal = besok"
+                                        :class="tanggal === besok ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                        class="px-3 py-1 rounded-md font-bold transition">Besok</button>
+                            </div>
+                        </div>
+                        <input type="date" x-model="tanggal" :min="today"
+                               class="w-full h-11 px-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-900 focus:outline-none">
+                    </div>
+
+                    {{-- 3. JAM --}}
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-sm font-bold text-slate-700">
+                                3. Pilih Jam Pemakaian <span class="text-rose-500">*</span>
+                            </label>
+                            <span class="text-xs font-bold text-blue-900">
+                                Durasi: <span x-text="durasiJam"></span> jam
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">Jam Mulai</label>
+                                <select x-model="start" @change="selectingStart = true"
+                                        class="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-900">
+                                    @foreach($jamMulaiOptions as $jam)
+                                        <option value="{{ $jam }}">{{ $jam }} WIB</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">Jam Selesai</label>
+                                <select x-model="end"
+                                        class="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-900">
+                                    @foreach($jamSelesaiOptions as $jam)
+                                        <option value="{{ $jam }}">{{ $jam }} WIB</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        {{-- Grid Slot --}}
+                        <div class="border border-slate-200 rounded-xl p-3 space-y-2">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="font-bold text-slate-700">Klik slot untuk memilih rentang jam</span>
+                                <span class="text-slate-400" x-text="tanggal"></span>
+                            </div>
+
+                            <p x-show="loading" class="text-center text-slate-400 py-3 text-xs font-semibold">Memuat ketersediaan...</p>
+                            <p x-show="!loading && slots.length === 0" class="text-center text-slate-400 py-3 text-xs font-semibold">Pilih fasilitas untuk menampilkan slot.</p>
+
+                            <div x-show="!loading && slots.length > 0"
+                                 class="grid grid-cols-3 sm:grid-cols-5 gap-1.5 max-h-44 overflow-y-auto pr-1">
+                                <template x-for="(s, idx) in slots" :key="idx">
+                                    <button type="button" @click="pilihSlot(s)" :disabled="!s.available"
+                                            :class="!s.available
+                                                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                                                : (isSelected(s)
+                                                    ? 'bg-blue-900 border-blue-900 text-white shadow-sm'
+                                                    : 'bg-white border-slate-200 text-slate-700 hover:border-blue-900')"
+                                            class="p-1.5 rounded-lg border text-center transition">
+                                        <span class="block font-bold text-[11px]" x-text="s.start"></span>
+                                        <span class="block text-[9px] font-semibold opacity-80"
+                                              x-text="!s.available ? 'Terisi' : (isSelected(s) ? 'Dipilih' : 'Tersedia')"></span>
+                                    </button>
+                                </template>
+                            </div>
+
+                            <div class="flex items-center justify-between text-[10px] font-bold pt-2 border-t border-slate-100">
+                                <span class="text-emerald-600"><span x-text="slotTersedia"></span> Slot Tersedia</span>
+                                <span class="text-rose-500"><span x-text="slotTerisi"></span> Slot Terisi</span>
+                            </div>
+                        </div>
+
+                        {{-- Status --}}
+                        <div x-show="rangeValid && rangeTersedia" x-cloak
+                             class="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold">
+                            ✓ Slot <span x-text="start"></span>–<span x-text="end"></span> WIB (<span x-text="durasiJam"></span> jam) siap diajukan.
+                        </div>
+                        <div x-show="!rangeValid" x-cloak
+                             class="p-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold">
+                            ⚠ Jam selesai harus lebih besar dari jam mulai.
+                        </div>
+                        <div x-show="rangeValid && !rangeTersedia && slots.length > 0" x-cloak
+                             class="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold">
+                            ✗ Ada slot terisi di rentang ini. Pilih rentang lain.
+                        </div>
+                    </div>
+
+                    {{-- 4. TUJUAN --}}
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-sm font-bold text-slate-700">
+                                4. Tujuan Penggunaan <span class="text-rose-500">*</span>
+                            </label>
+                            <span class="text-xs font-bold text-slate-400">
+                                <span x-text="tujuan.length"></span>/500
+                            </span>
+                        </div>
+                        <textarea name="tujuan" x-model="tujuan" rows="3" maxlength="500" required
+                                  placeholder="Contoh: Kuliah Pengganti Pemrograman Web, Rapat Himpunan, Seminar Riset..."
+                                  class="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-900 focus:outline-none resize-none"></textarea>
+                        <p class="text-xs text-slate-400 mt-1">Minimal 5 karakter.</p>
+                    </div>
+
+                    {{-- AKSI --}}
+                    <div class="flex gap-3 pt-3 border-t border-slate-100">
+                        <a href="{{ route('landing') }}"
+                           class="flex-1 py-3 text-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition">
+                            Batal
+                        </a>
+                        <button type="submit" :disabled="!bisaDiajukan || submitting"
+                                :class="bisaDiajukan && !submitting ? 'bg-blue-900 hover:bg-blue-800' : 'bg-slate-300 cursor-not-allowed'"
+                                class="flex-1 py-3 text-white font-bold text-sm rounded-xl transition shadow-sm inline-flex items-center justify-center gap-2">
+                            <svg x-show="submitting" x-cloak class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
+                            <span x-text="submitting ? 'Mengirim...' : 'Ajukan Permohonan'"></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+@push('scripts')
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('reservasiForm', (cfg) => ({
+        facilityId: cfg.facilityId,
+        tanggal: cfg.tanggal,
+        today: cfg.today,
+        besok: cfg.besok,
+        start: cfg.start,
+        end: cfg.end,
         tujuan: '',
         slots: [],
         loading: false,
-        selectingStart: true, // Marker acuan klik (true = pilih start, false = pilih end)
+        selectingStart: true,
 
         init() {
             this.loadSlots();
             this.$watch('tanggal', () => this.loadSlots());
         },
 
-        toMin(t) { let p = t.split(':'); return (parseInt(p[0]) * 60) + parseInt(p[1]); },
+        toMin(t) {
+            const p = t.split(':');
+            return parseInt(p[0]) * 60 + parseInt(p[1]);
+        },
         toStr(m) {
             if (m > 1200) m = 1200;
-            let h = Math.floor(m / 60), i = m % 60;
+            const h = Math.floor(m / 60);
+            const i = m % 60;
             return String(h).padStart(2, '0') + ':' + String(i).padStart(2, '0');
         },
 
         loadSlots() {
             if (!this.facilityId) { this.slots = []; return; }
             this.loading = true;
-            fetch('/fasilitas/' + this.facilityId + '/ketersediaan?tanggal=' + this.tanggal)
+            const url = cfg.availUrl.replace('__ID__', this.facilityId) + '?tanggal=' + this.tanggal;
+            fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
                 .then(r => r.json())
                 .then(data => {
-                    this.slots = (data.slots || []).map(s => {
-                        return { start: s.start, end: s.end, available: s.is_available };
-                    });
+                    this.slots = (data.slots || []).map(s => ({
+                        start: s.start,
+                        end: s.end,
+                        available: s.is_available
+                    }));
                 })
                 .catch(() => { this.slots = []; })
                 .finally(() => { this.loading = false; });
@@ -49,7 +313,7 @@
         get slotTerisi() { return this.slots.filter(s => !s.available).length; },
 
         get durasiJam() {
-            let d = (this.toMin(this.end) - this.toMin(this.start)) / 60;
+            const d = (this.toMin(this.end) - this.toMin(this.start)) / 60;
             return d > 0 ? d : 0;
         },
 
@@ -57,45 +321,44 @@
 
         get rangeTersedia() {
             if (!this.rangeValid || this.slots.length === 0) return false;
-            let a = this.toMin(this.start), b = this.toMin(this.end);
+            const a = this.toMin(this.start);
+            const b = this.toMin(this.end);
             return this.slots
                 .filter(s => this.toMin(s.start) >= a && this.toMin(s.end) <= b)
                 .every(s => s.available);
         },
 
         get bisaDiajukan() {
-            return this.facilityId && this.rangeValid && this.rangeTersedia && this.tujuan.trim().length > 0;
+            return this.facilityId
+                && this.rangeValid
+                && this.rangeTersedia
+                && this.tujuan.trim().length >= 5;
         },
 
-        setDurasi(jam) { 
-            this.end = this.toStr(this.toMin(this.start) + (jam * 60)); 
-            this.selectingStart = false;
+        isSelected(s) {
+            return this.toMin(s.start) >= this.toMin(this.start)
+                && this.toMin(s.end) <= this.toMin(this.end);
         },
 
-        // LOGIKA BARU PILIH RANGE SLOT (KLIK AWAL & KLIK AKHIR)
         pilihSlot(s) {
             if (!s.available) return;
+            const slotStartMin = this.toMin(s.start);
+            const currentStartMin = this.toMin(this.start);
 
-            let slotStartMin = this.toMin(s.start);
-            let currentStartMin = this.toMin(this.start);
-
-            // Jika sedang mode pilih awal ATAU klik jam yang lebih kecil dari jam mulai saat ini
             if (this.selectingStart || slotStartMin < currentStartMin) {
                 this.start = s.start;
-                this.end = s.end; // Default durasi 30 menit
-                this.selectingStart = false; // Klik berikutnya untuk tentukan jam selesai
+                this.end = s.end;
+                this.selectingStart = false;
             } else {
-                // Klik kedua: tentukan jam selesai
-                let potentialEnd = s.end;
-                let rangeValid = this.slots
+                const potentialEnd = s.end;
+                const valid = this.slots
                     .filter(item => this.toMin(item.start) >= currentStartMin && this.toMin(item.end) <= this.toMin(potentialEnd))
                     .every(item => item.available);
 
-                if (rangeValid) {
+                if (valid) {
                     this.end = potentialEnd;
-                    this.selectingStart = true; // Reset kembali untuk memilih rentang baru jika diklik lagi
+                    this.selectingStart = true;
                 } else {
-                    // Jika ada slot bentrok di tengah-tengahnya, reset jam mulai ke slot baru yang diklik
                     this.start = s.start;
                     this.end = s.end;
                     this.selectingStart = false;
@@ -104,205 +367,9 @@
         },
 
         gantiFasilitas(id) {
-            window.location.href = '{{ route('pengguna.reservasi.create') }}?facility_id=' + id + '&tanggal=' + this.tanggal;
+            window.location.href = cfg.createUrl + '?facility_id=' + id + '&tanggal=' + this.tanggal;
         }
-    }">
-
-    <!-- Navigation Header Bar -->
-    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-        <a href="{{ route('landing') }}" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition">
-            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
-            Kembali ke Katalog
-        </a>
-        <h1 class="text-sm font-black text-slate-900 tracking-tight">Formulir Permohonan Reservasi</h1>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
-
-        <!-- KIRI: Detail Fasilitas Ringkas -->
-        <div class="lg:col-span-2">
-            <div class="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden sticky top-16">
-                @if($facility)
-                    <div class="h-28 bg-slate-100 relative">
-                        <img src="{{ $facility->foto }}" alt="{{ $facility->nama_fasilitas }}" class="w-full h-full object-cover">
-                        <span class="absolute top-2 left-2 px-2 py-0.5 bg-[#0f2540]/90 text-white rounded text-[9px] font-black uppercase tracking-wider">{{ $facility->tipe }}</span>
-                        <span class="absolute top-2 right-2 px-2 py-0.5 bg-emerald-600 text-white rounded text-[9px] font-black uppercase tracking-wider">Tersedia</span>
-                    </div>
-
-                    <div class="p-3 space-y-2 text-xs">
-                        <div>
-                            <h2 class="text-sm font-black text-slate-900 leading-snug">{{ $facility->nama_fasilitas }}</h2>
-                            <p class="text-[11px] text-slate-500">📍 {{ $facility->lokasi }} &bull; Kapasitas: <span class="font-bold text-slate-700">{{ $facility->kapasitas }} Org</span></p>
-                        </div>
-
-                        <p class="text-[11px] text-slate-600 leading-tight line-clamp-2">{{ $facility->deskripsi }}</p>
-
-                        <div class="bg-blue-50/70 border border-blue-100 rounded-lg p-2 space-y-1 text-[10px]">
-                            <p class="font-black text-[#0f2540]">Ketentuan Pemakaian</p>
-                            <ul class="list-disc list-inside text-slate-700 space-y-0.5 font-medium">
-                                <li>Slot interval 30 menit (07.00 - 20.00 WIB).</li>
-                                <li>Sistem memvalidasi bentrok jadwal secara otomatis.</li>
-                                <li>Diverifikasi langsung oleh Tim Petugas Sarpras.</li>
-                            </ul>
-                        </div>
-                    </div>
-                @else
-                    <div class="p-4 text-xs text-slate-500 space-y-1">
-                        <h2 class="text-xs font-black text-slate-900">Belum Ada Fasilitas Dipilih</h2>
-                        <p class="text-[11px] text-slate-500 leading-normal">Silakan pilih salah satu fasilitas pada formulir untuk memuat info ketersediaan slot.</p>
-                    </div>
-                @endif
-            </div>
-        </div>
-
-        <!-- KANAN: Formulir Compact -->
-        <div class="lg:col-span-3">
-            <div class="bg-white rounded-xl border border-slate-200 shadow-2xs p-4 space-y-3">
-
-                <form action="{{ route('pengguna.reservasi.store') }}" method="POST" class="space-y-3 text-xs">
-                    @csrf
-                    <input type="hidden" name="facility_id" :value="facilityId">
-                    <input type="hidden" name="tanggal" :value="tanggal">
-                    <input type="hidden" name="start_time" :value="start">
-                    <input type="hidden" name="end_time" :value="end">
-
-                    <!-- 1. Pilih Fasilitas -->
-                    <div>
-                        <label class="block font-black text-slate-800 mb-1">1. Fasilitas yang Dipinjam <span class="text-rose-500">*</span></label>
-                        <select @change="gantiFasilitas($event.target.value)"
-                            class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg font-bold text-slate-900 focus:ring-2 focus:ring-[#0f2540] focus:outline-none text-xs">
-                            <option value="">-- Pilih Fasilitas Kampus --</option>
-                            @foreach($facilities as $f)
-                                <option value="{{ $f->id }}" {{ ($facility && $facility->id === $f->id) ? 'selected' : '' }}>
-                                    {{ $f->nama_fasilitas }} ({{ $f->lokasi }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- 2. Tanggal Penggunaan -->
-                    <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <label class="block font-black text-slate-800">2. Tanggal Penggunaan <span class="text-rose-500">*</span></label>
-                            <div class="flex gap-1 text-[10px]">
-                                <button type="button" @click="tanggal = today"
-                                    :class="tanggal === today ? 'bg-[#0f2540] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                                    class="px-2 py-0.5 rounded-md font-bold transition">Hari Ini</button>
-                                <button type="button" @click="tanggal = besok"
-                                    :class="tanggal === besok ? 'bg-[#0f2540] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                                    class="px-2 py-0.5 rounded-md font-bold transition">Besok</button>
-                            </div>
-                        </div>
-                        <input type="date" x-model="tanggal" :min="today"
-                            class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:ring-2 focus:ring-[#0f2540] focus:outline-none text-xs">
-                    </div>
-
-                    <!-- 3. Slot & Jam Pemakaian -->
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between">
-                            <label class="block font-black text-slate-800">3. Pilih Slot &amp; Jam Pemakaian <span class="text-rose-500">*</span></label>
-                            <span class="text-[11px] font-black text-[#0f2540]">Durasi: <span x-text="durasiJam"></span> Jam</span>
-                        </div>
-
-                        <!-- Durasi Cepat -->
-                        <div class="flex items-center gap-1.5 text-[10px]">
-                            <span class="font-bold text-slate-400 uppercase tracking-wider shrink-0">Durasi:</span>
-                            <template x-for="d in [1, 1.5, 2, 3]" :key="d">
-                                <button type="button" @click="setDurasi(d)"
-                                    :class="durasiJam === d ? 'bg-[#0f2540] text-white border-[#0f2540]' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'"
-                                    class="px-2 py-0.5 rounded-md border font-extrabold transition" x-text="d + ' J'"></button>
-                            </template>
-                        </div>
-
-                        <!-- Dropdown Jam Mulai & Selesai -->
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block font-bold text-slate-500 text-[10px] mb-0.5">Jam Mulai</label>
-                                <select x-model="start" class="w-full p-1.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none text-xs">
-                                    @foreach($jamMulaiOptions as $jam)
-                                        <option value="{{ $jam }}">{{ $jam }} WIB</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block font-bold text-slate-500 text-[10px] mb-0.5">Jam Selesai</label>
-                                <select x-model="end" class="w-full p-1.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none text-xs">
-                                    @foreach($jamSelesaiOptions as $jam)
-                                        <option value="{{ $jam }}">{{ $jam }} WIB</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Grid Ketersediaan Slot (5 Kolom Pilihan Range) -->
-                        <div class="border border-slate-200 rounded-lg p-2.5 space-y-2">
-                            <div class="flex items-center justify-between text-[11px]">
-                                <span class="font-bold text-slate-700">Pilih Rentang Jam Pemakaian (<span x-text="tanggal"></span>)</span>
-                                <span class="text-[10px] text-slate-400 font-medium">Klik jam mulai, lalu klik jam selesai</span>
-                            </div>
-
-                            <p x-show="loading" class="text-center text-slate-400 py-2 text-[11px] font-bold">Memuat ketersediaan slot...</p>
-                            <p x-show="!loading && slots.length === 0" class="text-center text-slate-400 py-2 text-[11px] font-bold">Pilih fasilitas untuk menampilkan slot.</p>
-
-                            <div x-show="!loading && slots.length > 0" class="grid grid-cols-3 sm:grid-cols-5 gap-1.5 max-h-40 overflow-y-auto pr-1">
-                                <template x-for="s in slots" :key="s.start">
-                                    <button type="button" @click="pilihSlot(s)" :disabled="!s.available"
-                                        :class="!s.available
-                                            ? 'bg-rose-50 border-rose-200 text-rose-400 cursor-not-allowed'
-                                            : (toMin(s.start) >= toMin(start) && toMin(s.end) <= toMin(end)
-                                                ? 'bg-[#0f2540] border-[#0f2540] text-white shadow-2xs'
-                                                : 'bg-white border-slate-200 text-slate-700 hover:border-[#0f2540]')"
-                                        class="p-1 rounded-lg border text-center transition">
-                                        <span class="block font-black text-[10px]" x-text="s.start"></span>
-                                        <span class="block text-[8px] font-bold opacity-80" x-text="s.available ? (toMin(s.start) >= toMin(start) && toMin(s.end) <= toMin(end) ? 'Terpilih' : 'Tersedia') : 'Terisi'"></span>
-                                    </button>
-                                </template>
-                            </div>
-
-                            <div class="flex items-center justify-between text-[9px] font-bold pt-1 border-t border-slate-100">
-                                <span class="text-emerald-600"><span x-text="slotTersedia"></span> Slot Tersedia</span>
-                                <span class="text-rose-500"><span x-text="slotTerisi"></span> Slot Terisi</span>
-                            </div>
-                        </div>
-
-                        <!-- Status Pilihan Slot -->
-                        <div x-show="rangeValid && rangeTersedia" class="p-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-[11px] font-bold">
-                            ✓ Slot <span x-text="start"></span> – <span x-text="end"></span> WIB (<span x-text="durasiJam"></span> Jam) berhasil diblok.
-                        </div>
-                        <div x-show="!rangeValid" class="p-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-[11px] font-bold">
-                            ⚠️ Jam selesai harus lebih besar dari jam mulai.
-                        </div>
-                        <div x-show="rangeValid && !rangeTersedia && slots.length > 0" class="p-2 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-[11px] font-bold">
-                            ❌ Ada slot terisi di dalam rentang waktu ini. Silakan pilih rentang waktu lain.
-                        </div>
-                    </div>
-
-                    <!-- 4. Tujuan Penggunaan -->
-                    <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <label class="block font-black text-slate-800">4. Tujuan Penggunaan Fasilitas <span class="text-rose-500">*</span></label>
-                            <span class="text-[9px] font-bold text-slate-400"><span x-text="tujuan.length"></span>/200</span>
-                        </div>
-                        <textarea name="tujuan" x-model="tujuan" rows="2" maxlength="200" required
-                            placeholder="Contoh: Rapat Kerja Himpunan, Seminar Riset, atau Kuliah Pengganti..."
-                            class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-[#0f2540] focus:outline-none text-xs"></textarea>
-                    </div>
-
-                    <!-- Aksi Form -->
-                    <div class="flex gap-2 pt-2 border-t border-slate-100">
-                        <a href="{{ route('landing') }}" class="w-1/3 py-2 text-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition text-xs">Batal</a>
-                        <button type="submit" :disabled="!bisaDiajukan"
-                            :class="bisaDiajukan ? 'bg-[#0f2540] hover:bg-[#0b1c31]' : 'bg-slate-300 cursor-not-allowed'"
-                            class="w-2/3 py-2 text-white font-extrabold rounded-lg transition shadow-2xs text-xs">
-                            Ajukan Permohonan Reservasi
-                        </button>
-                    </div>
-                </form>
-
-            </div>
-        </div>
-    </div>
-</div>
-@endsection
+    }));
+});
+</script>
+@endpush

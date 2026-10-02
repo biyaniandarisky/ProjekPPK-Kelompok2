@@ -16,13 +16,24 @@ return new class extends Migration
             $table->date('tanggal');
             $table->time('start_time');
             $table->time('end_time');
-            $table->string('tujuan', 200);
-            $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending');
+            $table->string('tujuan', 500);
+            $table->enum('status', [
+                'pending',
+                'approved',
+                'rejected',
+                'cancelled',
+                'expired',
+            ])->default('pending');
             $table->text('alasan_batal')->nullable();
+            $table->text('alasan_tolak')->nullable();
+            $table->timestamp('reminded_at')->nullable();
             $table->timestamps();
 
-            // Composite index untuk kecepatan query validasi bentrok jadwal
+            // Composite index untuk cek bentrok
             $table->index(['facility_id', 'tanggal', 'status']);
+            $table->index('user_id');
+            $table->index('status');
+            $table->index('tanggal');
         });
     }
 

@@ -14,11 +14,16 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('petugas_id')->nullable()->constrained('users')->nullOnDelete();
             $table->enum('kategori_laporan', ['Kerusakan', 'Kebersihan', 'Fasilitas', 'Lainnya']);
-            $table->string('deskripsi', 150);
+            $table->text('deskripsi'); // ← UBAH: text, bukan string 150
             $table->string('foto')->nullable();
             $table->enum('status_laporan', ['baru', 'diproses', 'selesai', 'ditolak'])->default('baru');
             $table->text('catatan_resolusi')->nullable();
             $table->timestamps();
+
+            // Index untuk performa
+            $table->index('status_laporan');
+            $table->index('facility_id');
+            $table->index('user_id');
         });
     }
 

@@ -11,40 +11,79 @@ use App\Services\ReservationService;
 
 class PetugasController extends Controller
 {
+    /**
+     * Dashboard petugas.
+     */
     public function dashboard()
-    {
-        $reservations = Reservation::with('facility')->get();
-        $reports = Report::all();
-        $today = now()->toDateString();
+{
+    $today = now()->toDateString();
 
-        $stats = [
-            'baru_masuk' => $reservations->where('status', 'pending')->count()
-                + $reports->where('status_laporan', 'baru')->count(),
+    $stats = [
+        'baru_masuk' => Reservation::where('status', 'pending')->count()
+            + Report::where('status_laporan', 'baru')->count(),
+        'masih_berjalan' => Reservation::where('status', 'approved')
+            ->where('tanggal', '>=', $today)->count(),
+        'disetujui' => Reservation::where('status', 'approved')->count(),
+        'laporan_baru' => Report::where('status_laporan', 'baru')->count(),
+    ];
 
-            'masih_berjalan' => $reservations->where('status', 'approved')
-                ->filter(fn ($r) => $r->tanggal->toDateString() >= $today)
-                ->count(),
+    // Perlu Tindakan — 3 reservasi pending + 2 laporan baru
+    $reservasiMenunggu = Reservation::with('facility', 'user')
+        ->where('status', 'pending')
+        ->orderBy('tanggal')
+        ->orderBy('start_time')
+        ->take(3)
+        ->get();
 
-            'disetujui' => $reservations->where('status', 'approved')->count(),
-        ];
+    $laporanBaru = Report::with('facility', 'user')
+        ->where('status_laporan', 'baru')
+        ->latest()
+        ->take(2)
+        ->get();
 
-        return view('petugas.dashboard', compact('stats'));
-    }
+    // Sedang Digunakan — reservasi hari ini + laporan diproses
+    $reservasiHariIni = Reservation::with('facility', 'user')
+        ->where('tanggal', $today)
+        ->whereIn('status', ['approved', 'pending'])
+        ->orderBy('start_time')
+        ->get();
 
+    $laporanDiproses = Report::with('facility', 'user')
+        ->where('status_laporan', 'diproses')
+        ->latest()
+        ->take(3)
+        ->get();
+
+    return view('petugas.dashboard', compact(
+        'stats',
+        'reservasiMenunggu',
+        'laporanBaru',
+        'reservasiHariIni',
+        'laporanDiproses'
+    ));
+}
+
+    /**
+     * Antrian reservasi.
+     */
     public function reservasiIndex()
     {
         $reservations = Reservation::with(['facility', 'user'])->latest()->get();
-
         return view('petugas.reservasi', compact('reservations'));
     }
 
+    /**
+     * Antrian laporan.
+     */
     public function laporanIndex()
     {
         $reports = Report::with(['facility', 'user'])->latest()->get();
-
         return view('petugas.laporan', compact('reports'));
     }
 
+    /**
+     * Notifikasi petugas.
+     */
     public function notifikasiIndex()
     {
         $reservasiBaru = Reservation::with(['facility', 'user'])
@@ -68,6 +107,9 @@ class PetugasController extends Controller
         return view('petugas.notifikasi', compact('notifikasi'));
     }
 
+    /**
+     * Daftar fasilitas + jumlah laporan terbuka.
+     */
     public function fasilitasIndex()
     {
         $facilities = Facility::withCount([
@@ -79,12 +121,20 @@ class PetugasController extends Controller
         return view('petugas.fasilitas', compact('facilities'));
     }
 
+    /**
+     * Approve reservasi.
+     */
     public function approveReservasi($id, ReservationService $service)
     {
         $res = Reservation::with('facility')->findOrFail($id);
 
-        if ($service->hasConflict($res->facility_id, $res->tanggal->toDateString(), $res->start_time, $res->end_time, $res->id)) {
-            return back()->withErrors(['msg' => 'Gagal menyetujui: Jadwal bertabrakan dengan reservasi lain yang telah disetujui!']);
+        if ($res->status !== 'pending') {
+            return back()->withErrors(['msg' => 'Reservasi ini sudah tidak berstatus menunggu.']);
+        }
+
+        // Cek bentrok (signature disesuaikan dengan ReservationService)
+        if ($service->hasConflict($res->facility_id, $res->start_time, $res->end_time, $res->id)) {
+            return back()->withErrors(['msg' => 'Gagal menyetujui: jadwal bertabrakan dengan reservasi lain.']);
         }
 
         $res->update([
@@ -92,10 +142,9 @@ class PetugasController extends Controller
             'petugas_id' => auth()->id(),
         ]);
 
-        // --- KIRIM NOTIFIKASI KE PENGGUNA (DITAMBAHKAN RESERVATION_ID) ---
         Notification::create([
             'user_id'        => $res->user_id,
-            'reservation_id' => $res->id, // <-- PENTING: Menghubungkan langsung ID reservasi ke notifikasi
+            'reservation_id' => $res->id,
             'judul'          => 'Reservasi Disetujui!',
             'pesan'          => 'Pengajuan reservasi ' . ($res->facility->nama_fasilitas ?? 'fasilitas') . ' untuk tanggal ' . $res->tanggal->format('d M Y') . ' telah disetujui.',
             'tipe'           => 'success',
@@ -105,6 +154,9 @@ class PetugasController extends Controller
         return back()->with('success', "Reservasi #{$res->id} berhasil disetujui.");
     }
 
+    /**
+     * Reject reservasi.
+     */
     public function rejectReservasi(Request $request, $id)
     {
         $request->validate([
@@ -114,13 +166,17 @@ class PetugasController extends Controller
         ]);
 
         $res = Reservation::with('facility')->findOrFail($id);
+
+        if ($res->status !== 'pending') {
+            return back()->withErrors(['msg' => 'Reservasi ini sudah tidak berstatus menunggu.']);
+        }
+
         $res->update([
             'status'       => 'rejected',
             'alasan_tolak' => $request->alasan_tolak,
             'petugas_id'   => auth()->id(),
         ]);
 
-        // --- KIRIM NOTIFIKASI KE PENGGUNA ---
         Notification::create([
             'user_id' => $res->user_id,
             'judul'   => 'Reservasi Ditolak',
@@ -132,6 +188,9 @@ class PetugasController extends Controller
         return back()->with('info', "Reservasi #{$res->id} telah ditolak.");
     }
 
+    /**
+     * Emergency cancel reservasi yang sudah approved.
+     */
     public function emergencyCancel(Request $request, $id)
     {
         $request->validate([
@@ -139,13 +198,17 @@ class PetugasController extends Controller
         ]);
 
         $res = Reservation::with('facility')->findOrFail($id);
+
+        if ($res->status !== 'approved') {
+            return back()->withErrors(['msg' => 'Hanya reservasi yang disetujui yang bisa dibatalkan darurat.']);
+        }
+
         $res->update([
             'status'       => 'cancelled',
             'alasan_batal' => $request->alasan_batal,
             'petugas_id'   => auth()->id(),
         ]);
 
-        // --- KIRIM NOTIFIKASI KE PENGGUNA ---
         Notification::create([
             'user_id' => $res->user_id,
             'judul'   => 'Pembatalan Darurat Reservasi',
@@ -157,9 +220,17 @@ class PetugasController extends Controller
         return back()->with('warning', "Reservasi #{$res->id} dibatalkan secara darurat.");
     }
 
+    /**
+     * Proses laporan (baru → diproses).
+     */
     public function processLaporan($id)
     {
         $report = Report::with('facility')->findOrFail($id);
+
+        if ($report->status_laporan !== 'baru') {
+            return back()->withErrors(['msg' => 'Laporan ini sudah tidak berstatus baru.']);
+        }
+
         $report->update([
             'status_laporan' => 'diproses',
             'petugas_id'     => auth()->id(),
@@ -167,7 +238,6 @@ class PetugasController extends Controller
 
         $report->facility->update(['status' => 'dalam_perbaikan']);
 
-        // --- KIRIM NOTIFIKASI KE PENGGUNA ---
         Notification::create([
             'user_id' => $report->user_id,
             'judul'   => 'Laporan Sedang Diproses',
@@ -179,6 +249,9 @@ class PetugasController extends Controller
         return back()->with('success', "Laporan diproses. Status {$report->facility->nama_fasilitas} diubah ke Dalam Perbaikan.");
     }
 
+    /**
+     * Selesaikan laporan (diproses → selesai).
+     */
     public function resolveLaporan(Request $request, $id)
     {
         $request->validate([
@@ -186,15 +259,26 @@ class PetugasController extends Controller
         ]);
 
         $report = Report::with('facility')->findOrFail($id);
+
+        if ($report->status_laporan !== 'diproses') {
+            return back()->withErrors(['msg' => 'Hanya laporan yang sedang diproses yang bisa diselesaikan.']);
+        }
+
         $report->update([
             'status_laporan'   => 'selesai',
             'catatan_resolusi' => $request->catatan_resolusi,
             'petugas_id'       => auth()->id(),
         ]);
 
-        $report->facility->update(['status' => 'aktif']);
+        // Cek laporan lain di fasilitas yang sama
+        $masihAda = Report::where('facility_id', $report->facility_id)
+            ->whereIn('status_laporan', ['baru', 'diproses'])
+            ->exists();
 
-        // --- KIRIM NOTIFIKASI KE PENGGUNA ---
+        if (!$masihAda) {
+            $report->facility->update(['status' => 'aktif']);
+        }
+
         Notification::create([
             'user_id' => $report->user_id,
             'judul'   => 'Laporan Kendala Selesai',
@@ -203,9 +287,19 @@ class PetugasController extends Controller
             'link'    => route('pengguna.laporan.index'),
         ]);
 
-        return back()->with('success', "Laporan selesai. Status {$report->facility->nama_fasilitas} dikembalikan ke Aktif.");
+        $msg = "Laporan selesai.";
+        if (!$masihAda) {
+            $msg .= " Status {$report->facility->nama_fasilitas} dikembalikan ke Aktif.";
+        } else {
+            $msg .= " Fasilitas masih dalam perbaikan karena ada laporan lain.";
+        }
+
+        return back()->with('success', $msg);
     }
 
+    /**
+     * Ubah status fasilitas (dalam perbaikan / aktif / selesai).
+     */
     public function updateFacilityStatus(Request $request, $id)
     {
         $request->validate([
@@ -235,7 +329,6 @@ class PetugasController extends Controller
             $catatan = $request->catatan_resolusi
                 ?: 'Perbaikan telah diselesaikan oleh petugas sarana.';
 
-            // Ambil laporan terkait sebelum di-update untuk dikirimi notifikasi
             $laporanTerdampak = $facility->reports()
                 ->whereIn('status_laporan', ['baru', 'diproses'])
                 ->get();
@@ -249,7 +342,6 @@ class PetugasController extends Controller
                     'updated_at'       => now(),
                 ]);
 
-            // Kirim notifikasi ke masing-masing pelapor
             foreach ($laporanTerdampak as $report) {
                 Notification::create([
                     'user_id' => $report->user_id,
@@ -267,7 +359,6 @@ class PetugasController extends Controller
         }
 
         $facility->update(['status' => 'aktif']);
-
         return back()->with('info', "Status {$facility->nama_fasilitas} diubah ke Aktif.");
     }
 }

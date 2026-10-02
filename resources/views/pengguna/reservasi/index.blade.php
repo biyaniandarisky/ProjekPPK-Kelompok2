@@ -1,100 +1,101 @@
 @extends('layouts.app')
 
+@section('title', 'Reservasi Saya')
+
 @section('content')
-<div class="max-w-5xl mx-auto px-4 py-3 space-y-2.5"
-    x-data="{
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4"
+     x-data="{
         filter: '{{ $activeStatus }}',
         detail: null,
         showDetail: false,
-        buka(el) { 
-            this.detail = JSON.parse(el.getAttribute('data-detail')); 
-            this.showDetail = true; 
+        buka(data) {
+            this.detail = data;
+            this.showDetail = true;
         }
-    }">
+     }">
 
-    <!-- Top Navigation & Header Row (Satu Baris Compact) -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200 pb-2">
+    {{-- HEADER --}}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div class="flex items-center gap-3">
-            <a href="{{ route('pengguna.dashboard') }}" class="inline-flex items-center justify-center w-7 h-7 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition" title="Kembali ke Dashboard">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            <a href="{{ route('pengguna.dashboard') }}"
+               class="inline-flex items-center justify-center w-10 h-10 bg-white border border-slate-200 hover:border-blue-900 text-slate-600 hover:text-blue-900 rounded-xl transition shadow-sm"
+               title="Kembali ke Dashboard">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
                 </svg>
             </a>
             <div>
-                <h1 class="text-base font-black text-slate-900 tracking-tight leading-tight">Reservasi Saya</h1>
-                <p class="text-[10px] text-slate-500">Pantau status pengajuan peminjaman fasilitas kamu.</p>
+                <h1 class="text-2xl font-black text-slate-900">Reservasi Saya</h1>
+                <p class="text-xs text-slate-500">Pantau status pengajuan peminjaman fasilitas Anda.</p>
             </div>
         </div>
-
         <a href="{{ route('pengguna.reservasi.create') }}"
-            class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#0f2540] hover:bg-[#0b1c31] text-white text-[11px] font-bold rounded-lg shadow-xs transition shrink-0">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
+           class="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 bg-blue-900 hover:bg-blue-800 text-white text-sm font-bold rounded-xl shadow-sm transition shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
             </svg>
-            Ajukan Reservasi Baru
+            Ajukan Reservasi
         </a>
     </div>
 
-    <!-- FORM FILTER STATUS & PENCARIAN TANGGAL OTOMATIS -->
-    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-        
-        <!-- Filter Status Compact (Kiri) -->
-        @php
-            $filters = [
-                'all'       => 'Semua Status',
-                'pending'   => 'Menunggu',
-                'approved'  => 'Disetujui',
-                'rejected'  => 'Ditolak',
-                'cancelled' => 'Dibatalkan',
-            ];
-        @endphp
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-1.5 flex-1">
+    {{-- FILTER --}}
+    @php
+        $filters = [
+            'all'       => 'Semua',
+            'pending'   => 'Menunggu',
+            'approved'  => 'Disetujui',
+            'rejected'  => 'Ditolak',
+            'cancelled' => 'Dibatalkan',
+        ];
+    @endphp
+
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
             @foreach($filters as $key => $label)
                 <button type="button" @click="filter = '{{ $key }}'"
-                    :class="filter === '{{ $key }}' ? 'bg-[#0f2540] text-white border-[#0f2540] shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
-                    class="py-1.5 px-2 rounded-lg border text-[11px] font-extrabold transition text-center truncate">
+                        :class="filter === '{{ $key }}' ? 'bg-blue-900 text-white border-blue-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
+                        class="py-2.5 px-2 rounded-xl border text-xs font-bold transition text-center truncate">
                     {{ $label }} ({{ $counts[$key] }})
                 </button>
             @endforeach
         </div>
 
-        <!-- Input Pencarian Tanggal (Dengan Label & Tombol Reset Berwarna) -->
-        <form method="GET" action="{{ route('pengguna.reservasi.index') }}" class="flex items-center gap-1.5 shrink-0" id="formFilterTanggal">
+        <form method="GET" action="{{ route('pengguna.reservasi.index') }}"
+              class="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
             @if(request('status'))
                 <input type="hidden" name="status" value="{{ request('status') }}">
             @endif
-            
-            <span class="text-[11px] font-bold text-slate-600">🔎 Tanggal:</span>
 
+            <label class="text-xs font-bold text-slate-600">Filter Tanggal:</label>
             <input type="date" name="tanggal" value="{{ $searchTanggal ?? '' }}"
-                onchange="document.getElementById('formFilterTanggal').submit()"
-                class="bg-white border border-slate-200 text-slate-700 text-[11px] font-bold rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 transition cursor-pointer"
-                title="Pilih tanggal untuk langsung memfilter">
+                   onchange="this.form.submit()"
+                   class="h-9 px-3 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl focus:outline-none focus:border-blue-900 transition cursor-pointer">
 
             @if(!empty($searchTanggal))
-                <a href="{{ route('pengguna.reservasi.index') }}" class="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-lg transition shadow-xs" title="Reset Filter Tanggal">
+                <a href="{{ route('pengguna.reservasi.index') }}"
+                   class="h-9 px-3 inline-flex items-center bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition">
                     Reset
                 </a>
             @endif
         </form>
-
     </div>
 
-    <!-- Daftar Reservasi Compact (Max Height Scroll) -->
-    <div class="space-y-2 max-h-[calc(100vh-175px)] overflow-y-auto pr-1">
+    {{-- DAFTAR RESERVASI --}}
+    <div class="space-y-3">
         @forelse($myReservations as $r)
             @php
                 $badge = match($r->status) {
-                    'approved'  => ['Disetujui', 'bg-emerald-100 text-emerald-800 border-emerald-200'],
-                    'rejected'  => ['Ditolak', 'bg-rose-100 text-rose-800 border-rose-200'],
-                    'cancelled' => ['Dibatalkan', 'bg-slate-200 text-slate-700 border-slate-300'],
-                    default     => ['Menunggu Persetujuan', 'bg-amber-100 text-amber-800 border-amber-200'],
+                    'approved'  => ['Disetujui', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
+                    'rejected'  => ['Ditolak', 'bg-rose-50 text-rose-700 border-rose-200'],
+                    'cancelled' => ['Dibatalkan', 'bg-slate-100 text-slate-600 border-slate-200'],
+                    default     => ['Menunggu', 'bg-amber-50 text-amber-700 border-amber-200'],
                 };
 
-                // Menentukan Waktu Verifikasi/Pembaruan Status oleh Petugas
                 $verifiedAt = '-';
                 if ($r->status !== 'pending') {
-                    $verifiedAt = $r->updated_at ? \Carbon\Carbon::parse($r->updated_at)->translatedFormat('d M Y H:i') . ' WIB' : '-';
+                    $verifiedAt = $r->updated_at
+                        ? \Carbon\Carbon::parse($r->updated_at)->translatedFormat('d M Y H:i') . ' WIB'
+                        : '-';
                 }
 
                 $detailArray = [
@@ -103,182 +104,220 @@
                     'lokasi'       => $r->facility->lokasi ?? '-',
                     'kapasitas'    => $r->facility->kapasitas ?? '-',
                     'tanggal'      => \Carbon\Carbon::parse($r->tanggal)->translatedFormat('d F Y'),
-                    'waktu'        => \Carbon\Carbon::parse($r->start_time)->format('H:i') . ' - ' . \Carbon\Carbon::parse($r->end_time)->format('H:i') . ' WIB',
+                    'waktu'        => substr($r->start_time, 0, 5) . ' - ' . substr($r->end_time, 0, 5) . ' WIB',
                     'tujuan'       => $r->tujuan,
                     'status'       => $badge[0],
                     'statusCode'   => $r->status,
                     'alasan'       => $r->alasan_tolak ?? $r->alasan_batal ?? null,
                     'diajukan'     => $r->created_at ? \Carbon\Carbon::parse($r->created_at)->translatedFormat('d M Y H:i') . ' WIB' : '-',
                     'diverifikasi' => $verifiedAt,
-                    'petugas'      => $r->petugas->name ?? $r->petugas->nama ?? null,
+                    'petugas'      => $r->petugas->name ?? null,
+                    'cetak_url'    => $r->status === 'approved' ? route('pengguna.reservasi.cetak', $r->id) : null,
                 ];
 
-                // --- HITUNG LOGIKA BATAS PEMBATALAN (H-1 JAM / 60 MENIT) ---
                 $tglStr = $r->tanggal instanceof \Carbon\Carbon ? $r->tanggal->format('Y-m-d') : $r->tanggal;
                 $startDateTime = \Carbon\Carbon::parse($tglStr . ' ' . $r->start_time);
-                $bisaDibatalkan = in_array($r->status, ['pending', 'approved']) && now()->diffInMinutes($startDateTime, false) >= 60;
+                $bisaDibatalkan = in_array($r->status, ['pending', 'approved'])
+                    && now()->diffInMinutes($startDateTime, false) >= 120;
             @endphp
 
             <div x-show="filter === 'all' || filter === '{{ $r->status }}'"
-                class="bg-white rounded-xl border border-slate-200 shadow-2xs p-3 hover:border-slate-300 transition">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                    <div class="space-y-1 text-xs min-w-0 flex-1">
-                        <div class="flex items-center gap-2">
-                            <h2 class="text-xs font-black text-slate-900 truncate">{{ $r->facility->nama_fasilitas ?? '-' }}</h2>
-                            <span class="px-2 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider {{ $badge[1] }}">
+                 class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 hover:border-slate-300 hover:shadow-md transition cursor-pointer"
+                 @click="buka({{ \Illuminate\Support\Js::from($detailArray) }})">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div class="space-y-1.5 text-sm min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="font-black text-slate-900 truncate">{{ $r->facility->nama_fasilitas ?? '-' }}</h2>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider {{ $badge[1] }}">
                                 {{ $badge[0] }}
                             </span>
                         </div>
 
-                        <div class="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] text-slate-600 font-medium">
-                            <span class="font-bold text-slate-800">📅 {{ \Carbon\Carbon::parse($r->tanggal)->format('d M Y') }}</span>
-                            <span>⏰ {{ \Carbon\Carbon::parse($r->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($r->end_time)->format('H:i') }} WIB</span>
-                            <span>📍 {{ $r->facility->lokasi ?? '-' }}</span>
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                            <span class="font-semibold text-slate-800 flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                {{ \Carbon\Carbon::parse($r->tanggal)->format('d M Y') }}
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                {{ substr($r->start_time, 0, 5) }}–{{ substr($r->end_time, 0, 5) }} WIB
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                </svg>
+                                {{ $r->facility->lokasi ?? '-' }}
+                            </span>
                         </div>
 
-                        <p class="text-[10px] text-slate-500 truncate italic">
-                            Tujuan: {{ \Illuminate\Support\Str::limit($r->tujuan, 50) }}
+                        <p class="text-xs text-slate-500 italic">
+                            Tujuan: {{ \Illuminate\Support\Str::limit($r->tujuan, 60) }}
                         </p>
                     </div>
 
-                    <!-- Tombol Aksi Ringkas -->
-                    <div class="flex items-center gap-1.5 shrink-0 self-end md:self-center">
-                        <!-- Detail -->
-                        <button type="button" @click="buka($el)" data-detail="{{ json_encode($detailArray) }}"
-                            class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-lg transition">
+                    {{-- Tombol Aksi --}}
+                    <div class="flex items-center gap-2 shrink-0 self-end md:self-center" @click.stop>
+                        <button type="button"
+                                @click="buka({{ \Illuminate\Support\Js::from($detailArray) }})"
+                                class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
                             Detail
                         </button>
 
-                        <!-- TOMBOL CETAK SURAT -->
-                        @if($r->status === 'approved')
-                            <a href="{{ route('pengguna.reservasi.cetak', $r->id) }}" target="_blank"
-                                class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 text-[11px] font-bold rounded-lg transition">
-                                Cetak Surat
-                            </a>
-                        @endif
-
-                        <!-- LOGIKA TOMBOL BATAL -->
                         @if($bisaDibatalkan)
                             <form action="{{ route('pengguna.reservasi.cancel', $r->id) }}" method="POST"
-                                onsubmit="return confirm('Apakah Anda yakin ingin membatalkan reservasi ini?')">
+                                  onsubmit="return confirm('Yakin ingin membatalkan reservasi ini?')">
                                 @csrf
-                                <button type="submit" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[11px] font-bold rounded-lg transition">
+                                <button type="submit"
+                                        class="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold rounded-xl transition">
                                     Batalkan
                                 </button>
                             </form>
                         @elseif(in_array($r->status, ['pending', 'approved']))
-                            <span class="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200 cursor-not-allowed" title="Pembatalan maksimal H-1 jam sebelum pemakaian">
-                                Batas Batal Lewat
+                            <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200 cursor-not-allowed"
+                                  title="Pembatalan maksimal 2 jam sebelum pemakaian">
+                                Batas Lewat
                             </span>
                         @endif
                     </div>
                 </div>
             </div>
         @empty
-            <div class="bg-white rounded-xl border border-slate-200 py-8 text-center text-xs text-slate-400 font-medium">
-                Belum ada riwayat reservasi.
+            <div class="bg-white rounded-2xl border border-slate-200 py-16 text-center">
+                <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-slate-700">Belum ada reservasi</p>
+                <p class="text-xs text-slate-400 mt-1">Ajukan reservasi pertama Anda</p>
+                <a href="{{ route('pengguna.reservasi.create') }}"
+                   class="inline-block mt-4 px-5 py-2.5 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-xl transition">
+                    Ajukan Reservasi →
+                </a>
             </div>
         @endforelse
 
-        <!-- Pesan Kosong Saat Filter Terpilih Tidak Punya Data -->
+        {{-- Empty state per filter --}}
         @if($myReservations->count() > 0)
             @foreach($filters as $key => $label)
                 @if($key !== 'all' && $counts[$key] === 0)
                     <div x-show="filter === '{{ $key }}'" x-cloak
-                        class="bg-white rounded-xl border border-slate-200 py-8 text-center text-xs text-slate-400 font-medium">
-                        Tidak ada reservasi dengan status <strong>{{ $label }}</strong>.
+                         class="bg-white rounded-2xl border border-slate-200 py-12 text-center">
+                        <div class="w-14 h-14 mx-auto rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                            </svg>
+                        </div>
+                        <p class="text-sm font-bold text-slate-700">Tidak ada reservasi {{ strtolower($label) }}</p>
+                        <p class="text-xs text-slate-400 mt-1">Coba ubah filter atau ajukan reservasi baru</p>
                     </div>
                 @endif
             @endforeach
         @endif
     </div>
 
-    <!-- Modal Detail Reservasi -->
-    <div x-show="showDetail" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-        <div @click.outside="showDetail = false" class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-100 space-y-3">
-            
-            <div class="flex justify-between items-center border-b border-slate-100 pb-2.5">
-                <h3 class="font-black text-slate-900 text-sm flex items-center gap-1.5">
-                    <span>Detail Reservasi</span>
-                    <span class="text-xs font-normal text-slate-400" x-text="'#' + detail?.id"></span>
+    {{-- MODAL DETAIL --}}
+    <div x-show="showDetail" x-cloak
+         x-effect="document.body.classList.toggle('overflow-hidden', showDetail)"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+         @keydown.escape.window="showDetail = false">
+        <div @click.outside="showDetail = false"
+             class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
+                <h3 class="font-black text-slate-900 text-sm">
+                    Detail Reservasi
+                    <span class="text-xs font-normal text-slate-400 ml-1" x-text="'#' + (detail?.id ?? '')"></span>
                 </h3>
-                <button type="button" @click="showDetail = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold leading-none">&times;</button>
+                <button type="button" @click="showDetail = false"
+                        class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
             </div>
 
-            <template x-if="detail">
-                <div class="space-y-2 text-xs">
-                    <div class="flex justify-between gap-2 border-b border-slate-50 pb-1.5">
-                        <span class="font-semibold text-slate-500">Fasilitas</span>
-                        <span class="font-extrabold text-slate-900 text-right" x-text="detail.fasilitas"></span>
-                    </div>
-
-                    <div class="flex justify-between gap-2 border-b border-slate-50 pb-1.5">
-                        <span class="font-semibold text-slate-500">Lokasi / Kapasitas</span>
-                        <span class="text-slate-700 text-right font-medium" x-text="detail.lokasi + ' (' + detail.kapasitas + ' Org)'"></span>
-                    </div>
-
-                    <div class="flex justify-between gap-2 border-b border-slate-50 pb-1.5">
-                        <span class="font-semibold text-slate-500">Tanggal Pelaksanaan</span>
-                        <span class="text-slate-800 font-bold text-right" x-text="detail.tanggal"></span>
-                    </div>
-
-                    <div class="flex justify-between gap-2 border-b border-slate-50 pb-1.5">
-                        <span class="font-semibold text-slate-500">Jam Sewa Slot</span>
-                        <span class="text-slate-800 font-bold text-right" x-text="detail.waktu"></span>
-                    </div>
-
-                    <div class="flex justify-between gap-2 border-b border-slate-50 pb-1.5">
-                        <span class="font-semibold text-slate-500">Status Saat Ini</span>
-                        <span class="font-black text-right uppercase tracking-wider text-[10px] px-2 py-0.5 rounded-full"
-                            :class="{
-                                'bg-emerald-100 text-emerald-800': detail.statusCode === 'approved',
-                                'bg-rose-100 text-rose-800': detail.statusCode === 'rejected',
-                                'bg-slate-200 text-slate-700': detail.statusCode === 'cancelled',
-                                'bg-amber-100 text-amber-800': detail.statusCode === 'pending'
-                            }"
-                            x-text="detail.status">
-                        </span>
-                    </div>
-
-                    <!-- TIMELINE INFORMASI WAKTU -->
-                    <div class="bg-slate-50 p-2.5 rounded-xl space-y-1.5 border border-slate-100 mt-2">
-                        <div class="flex justify-between gap-2 text-[11px]">
-                            <span class="text-slate-500 font-medium">Waktu Pengajuan:</span>
-                            <span class="font-bold text-slate-700" x-text="detail.diajukan"></span>
+            <div class="p-6 space-y-4">
+                <template x-if="detail">
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between gap-3 border-b border-slate-100 pb-2.5">
+                            <span class="text-slate-500 font-semibold">Fasilitas</span>
+                            <span class="font-black text-slate-900 text-right" x-text="detail.fasilitas"></span>
+                        </div>
+                        <div class="flex justify-between gap-3 border-b border-slate-100 pb-2.5">
+                            <span class="text-slate-500 font-semibold">Lokasi / Kapasitas</span>
+                            <span class="text-slate-700 text-right font-bold" x-text="detail.lokasi + ' (' + detail.kapasitas + ' org)'"></span>
+                        </div>
+                        <div class="flex justify-between gap-3 border-b border-slate-100 pb-2.5">
+                            <span class="text-slate-500 font-semibold">Tanggal</span>
+                            <span class="font-black text-slate-900 text-right" x-text="detail.tanggal"></span>
+                        </div>
+                        <div class="flex justify-between gap-3 border-b border-slate-100 pb-2.5">
+                            <span class="text-slate-500 font-semibold">Waktu</span>
+                            <span class="font-black text-slate-900 text-right" x-text="detail.waktu"></span>
+                        </div>
+                        <div class="flex justify-between gap-3 border-b border-slate-100 pb-2.5">
+                            <span class="text-slate-500 font-semibold">Status</span>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                                  :class="{
+                                      'bg-emerald-50 text-emerald-700': detail.statusCode === 'approved',
+                                      'bg-rose-50 text-rose-700': detail.statusCode === 'rejected',
+                                      'bg-slate-100 text-slate-600': detail.statusCode === 'cancelled',
+                                      'bg-amber-50 text-amber-700': detail.statusCode === 'pending'
+                                  }"
+                                  x-text="detail.status"></span>
                         </div>
 
-                        <div class="flex justify-between gap-2 text-[11px]" x-show="detail.statusCode !== 'pending'">
-                            <span class="text-slate-500 font-medium" x-text="detail.statusCode === 'approved' ? 'Waktu Disetujui:' : (detail.statusCode === 'rejected' ? 'Waktu Ditolak:' : 'Waktu Dibatalkan:')"></span>
-                            <span class="font-bold text-slate-800" x-text="detail.diverifikasi"></span>
+                        <div class="bg-slate-50 p-3 rounded-xl space-y-2">
+                            <div class="flex justify-between gap-3 text-xs">
+                                <span class="text-slate-500 font-semibold">Diajukan:</span>
+                                <span class="font-bold text-slate-700 text-right" x-text="detail.diajukan"></span>
+                            </div>
+                            <div class="flex justify-between gap-3 text-xs" x-show="detail.statusCode !== 'pending'">
+                                <span class="text-slate-500 font-semibold">Diproses:</span>
+                                <span class="font-bold text-slate-800 text-right" x-text="detail.diverifikasi"></span>
+                            </div>
+                            <div class="flex justify-between gap-3 text-xs" x-show="detail.petugas">
+                                <span class="text-slate-500 font-semibold">Petugas:</span>
+                                <span class="font-bold text-slate-800 text-right" x-text="detail.petugas"></span>
+                            </div>
                         </div>
 
-                        <div class="flex justify-between gap-2 text-[11px]" x-show="detail.petugas">
-                            <span class="text-slate-500 font-medium">Petugas Pemroses:</span>
-                            <span class="font-bold text-slate-800" x-text="detail.petugas"></span>
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 mb-1">Tujuan Kegiatan:</p>
+                            <p class="text-sm text-slate-800 bg-slate-50 p-3 rounded-xl leading-relaxed" x-text="detail.tujuan"></p>
+                        </div>
+
+                        <div x-show="detail.alasan" class="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                            <p class="text-xs font-black text-rose-800 mb-1">Catatan Petugas</p>
+                            <p class="text-sm text-rose-900 leading-relaxed" x-text="detail.alasan"></p>
                         </div>
                     </div>
+                </template>
+            </div>
 
-                    <!-- Tujuan Kegiatan -->
-                    <div class="pt-1">
-                        <p class="font-bold text-slate-600 mb-0.5 text-[11px]">Tujuan Kegiatan:</p>
-                        <p class="text-slate-800 bg-slate-50 p-2 rounded-lg border border-slate-100 leading-relaxed text-[11px]" x-text="detail.tujuan"></p>
-                    </div>
-
-                    <!-- Catatan Petugas (Alasan Ditolak / Dibatalkan) -->
-                    <div x-show="detail.alasan" class="p-2.5 bg-rose-50 border border-rose-200 rounded-xl space-y-0.5">
-                        <p class="font-extrabold text-rose-800 text-[11px]">Catatan Petugas / Alasan:</p>
-                        <p class="text-rose-900 text-[11px] leading-relaxed" x-text="detail.alasan"></p>
-                    </div>
+            {{-- FOOTER: Cetak + Tutup --}}
+            <div class="flex items-center justify-between gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50">
+                <div>
+                    <template x-if="detail && detail.cetak_url">
+                        <a :href="detail.cetak_url" target="_blank"
+                           class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                            </svg>
+                            Cetak Surat
+                        </a>
+                    </template>
                 </div>
-            </template>
-
-            <div class="flex justify-end pt-2 border-t border-slate-100">
-                <button type="button" @click="showDetail = false" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold px-4 py-1.5 rounded-xl text-xs transition">
+                <button type="button" @click="showDetail = false"
+                        class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition">
                     Tutup
                 </button>
             </div>
         </div>
     </div>
-
 </div>
 @endsection

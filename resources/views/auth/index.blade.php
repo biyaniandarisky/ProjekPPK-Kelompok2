@@ -1,10 +1,11 @@
 @extends('layouts.app')
 
-@section('title', $tab === 'register' ? 'Registrasi Akun — Reservasi Kampus' : 'Login — Reservasi Kampus')
+@section('title', ($tab ?? 'login') === 'register' ? 'Registrasi Akun' : 'Login')
 
 @section('content')
 @php
-    $inputBase = 'w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0f2540]/20 focus:border-[#0f2540]';
+    $inputBase = 'w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-900';
+    $tab = $tab ?? 'login';
 @endphp
 
 <div class="flex items-start justify-center px-4 py-10 sm:py-14"
@@ -19,145 +20,166 @@
         }
      }">
 
-    <div class="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 px-6 sm:px-8 py-8">
-        {{-- Header --}}
-        <div class="text-center">
-            <h2 class="mt-3 text-2xl font-extrabold text-slate-900" x-text="tab === 'login' ? 'Login' : 'Registrasi Akun'">{{ $tab === 'register' ? 'Registrasi Akun' : 'Login' }}</h2>
-            <p class="mt-1 text-[11px] text-slate-500"
-               x-text="tab === 'login' ? 'Sistem Reservasi & Pelaporan Fasilitas Kampus Terpadu' : 'Isi data diri Anda dengan benar'">
-                {{ $tab === 'register' ? 'Isi data diri Anda dengan benar' : 'Sistem Reservasi & Pelaporan Fasilitas Kampus Terpadu' }}
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-200 px-6 sm:px-8 py-8">
+
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-slate-900"
+                x-text="tab === 'login' ? 'Login' : 'Registrasi Akun'">
+                {{ $tab === 'register' ? 'Registrasi Akun' : 'Login' }}
+            </h1>
+            <p class="mt-1 text-xs text-slate-500"
+               x-text="tab === 'login' ? 'Sistem Reservasi & Pelaporan Fasilitas Kampus' : 'Isi data diri Anda dengan benar'">
             </p>
         </div>
 
-        {{-- ============ PANEL LOGIN ============ --}}
+        {{-- LOGIN --}}
         <form x-show="tab === 'login'" @if($tab !== 'login') x-cloak @endif
-              action="{{ route('login') }}" method="POST" class="mt-6 space-y-4">
+              action="{{ route('login') }}" method="POST" class="space-y-4">
             @csrf
 
             <div>
-                <label for="login-email" class="block text-xs font-bold text-slate-800 mb-1.5">Alamat Email Kampus</label>
-                <div class="relative">
-                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 7l9 6 9-6"/></svg>
-                    <input id="login-email" type="email" name="email" required autocomplete="email"
-                           value="{{ $tab === 'login' ? old('email') : '' }}" placeholder="nama@kampus.ac.id"
-                           class="{{ $inputBase }} pl-9">
-                </div>
+                <label for="login-email" class="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Alamat Email <span class="text-rose-500">*</span>
+                </label>
+                <input id="login-email" type="email" name="email" required
+                       value="{{ old('email') }}"
+                       placeholder="nama@kampus.ac.id"
+                       class="{{ $inputBase }}">
+                @error('email')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
             </div>
 
             <div>
                 <div class="flex items-center justify-between mb-1.5">
-                    <label for="login-password" class="block text-xs font-bold text-slate-800">Kata Sandi (Password)</label>
-                    <button type="button" @click="lupa = !lupa" class="text-[11px] font-bold text-blue-700 hover:underline">Lupa Password?</button>
+                    <label for="login-password" class="block text-xs font-semibold text-slate-700">
+                        Password <span class="text-rose-500">*</span>
+                    </label>
+                    <button type="button" @click="lupa = !lupa"
+                            class="text-xs font-semibold text-blue-900 hover:underline">
+                        Lupa Password?
+                    </button>
                 </div>
-                <div class="relative">
-                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 11V8a4 4 0 118 0v3"/></svg>
-                    <input id="login-password" type="password" name="password" required autocomplete="current-password"
-                           placeholder="Masukkan password Anda" class="{{ $inputBase }} pl-9">
-                </div>
-                <p x-show="lupa" x-cloak class="mt-2 text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                <input id="login-password" type="password" name="password" required
+                       placeholder="Minimal 8 karakter"
+                       class="{{ $inputBase }}">
+                <p x-show="lupa" x-cloak
+                   class="mt-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
                     Untuk mereset password, silakan hubungi admin atau petugas kampus.
                 </p>
             </div>
 
             <button type="submit"
-                    class="w-full h-11 bg-[#0f2540] hover:bg-[#0b1c31] text-white text-sm font-bold rounded-xl shadow-md transition">
+                    class="w-full h-11 bg-blue-900 hover:bg-blue-800 text-white text-sm font-bold rounded-lg shadow-sm transition">
                 Login ke Sistem
             </button>
 
-            <p class="text-center text-[11px] text-slate-500 pt-1 leading-relaxed">
+            <p class="text-center text-xs text-slate-500 pt-2">
                 Belum punya akun?
-                <button type="button" @click="switchTab('register')" class="font-extrabold text-blue-700 hover:underline">Daftar di sini</button>.
+                <button type="button" @click="switchTab('register')"
+                        class="font-bold text-blue-900 hover:underline">
+                    Daftar di sini
+                </button>
             </p>
         </form>
 
-        {{-- ============ PANEL REGISTRASI ============ --}}
+        {{-- REGISTER --}}
         <form x-show="tab === 'register'" @if($tab !== 'register') x-cloak @endif
-              action="{{ route('register') }}" method="POST" enctype="multipart/form-data" class="mt-6 space-y-3.5">
+              action="{{ route('register') }}" method="POST" enctype="multipart/form-data" class="space-y-3.5">
             @csrf
 
             <div>
-                <label for="reg-name" class="block text-xs font-bold text-slate-700 mb-1.5">Nama Lengkap <span class="text-rose-500">*</span></label>
-                <input id="reg-name" type="text" name="name" required maxlength="100" autocomplete="name"
-                       value="{{ old('name') }}" placeholder="Nama lengkap" class="{{ $inputBase }}">
-                @error('name')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
-            </div>
-
-            <div>
-                <label for="reg-nim" class="block text-xs font-bold text-slate-700 mb-1.5">NIM / NIP <span class="text-rose-500">*</span></label>
-                <input id="reg-nim" type="text" name="nim_nip" required maxlength="30" inputmode="numeric"
-                       value="{{ old('nim_nip') }}" placeholder="Nomor identitas" class="{{ $inputBase }}">
-                @error('nim_nip')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
-            </div>
-
-            <div>
-                <label for="reg-email" class="block text-xs font-bold text-slate-700 mb-1.5">Email <span class="text-rose-500">*</span></label>
-                <input id="reg-email" type="email" name="email" required autocomplete="email"
-                       value="{{ $tab === 'register' ? old('email') : '' }}" placeholder="email@kampus.ac.id" class="{{ $inputBase }}">
-                @error('email')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
-            </div>
-
-            <div>
-                <label for="reg-hp" class="block text-xs font-bold text-slate-700 mb-1.5">No. HP</label>
-                <input id="reg-hp" type="tel" name="no_hp" autocomplete="tel" inputmode="tel"
-                       value="{{ old('no_hp') }}" placeholder="08xxxxxxxxxx" class="{{ $inputBase }}">
-                @error('no_hp')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
-            </div>
-
-            <div>
-                <label for="reg-pass" class="block text-xs font-bold text-slate-700 mb-1.5">Password <span class="text-rose-500">*</span></label>
-                <input id="reg-pass" type="password" name="password" required minlength="8" autocomplete="new-password"
-                       placeholder="min. 8 karakter" class="{{ $inputBase }}">
-                @error('password')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
-            </div>
-
-            <div>
-                <label for="reg-pass2" class="block text-xs font-bold text-slate-700 mb-1.5">Konfirmasi Password <span class="text-rose-500">*</span></label>
-                <input id="reg-pass2" type="password" name="password_confirmation" required minlength="8" autocomplete="new-password"
-                       placeholder="ulangi password" class="{{ $inputBase }}">
-            </div>
-
-            <div x-data="{ drag: false, fileName: '' }">
-                <label class="block text-xs font-bold text-slate-700 mb-1.5">Upload KTM / KTP</label>
-                <label @dragover.prevent="drag = true" @dragleave.prevent="drag = false"
-                       @drop.prevent="drag = false; $refs.file.files = $event.dataTransfer.files; fileName = $refs.file.files[0] ? $refs.file.files[0].name : ''"
-                       class="flex items-center justify-center gap-2 h-20 px-3 text-center rounded-lg border border-dashed cursor-pointer text-[12px] transition"
-                       :class="drag ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-300 bg-slate-50 text-slate-500 hover:bg-slate-100'">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8l-8.6 8.6a5.5 5.5 0 01-7.8-7.8l9-9a3.7 3.7 0 015.2 5.2l-9 9a1.8 1.8 0 01-2.6-2.6l8.4-8.4"/></svg>
-                    <span x-show="!fileName">Klik untuk upload atau drag &amp; drop</span>
-                    <span x-show="fileName" x-cloak class="font-semibold text-slate-700 break-all" x-text="fileName"></span>
-                    <input type="file" name="ktm" x-ref="file" class="hidden" accept=".jpg,.jpeg,.png,.pdf"
-                           @change="fileName = $event.target.files[0] ? $event.target.files[0].name : ''">
+                <label for="reg-name" class="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Nama Lengkap <span class="text-rose-500">*</span>
                 </label>
-                <p class="mt-1 text-[10px] text-slate-400">Format JPG, PNG, atau PDF. Maksimal 2 MB. Digunakan admin untuk memverifikasi identitas Anda.</p>
-                @error('ktm')<p class="mt-1 text-[11px] text-rose-600">{{ $message }}</p>@enderror
+                <input id="reg-name" type="text" name="name" required maxlength="100"
+                       value="{{ old('name') }}" placeholder="Nama lengkap" class="{{ $inputBase }}">
+                @error('name')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label for="reg-nim" class="block text-xs font-semibold text-slate-700 mb-1.5">
+                    NIM / NIP <span class="text-rose-500">*</span>
+                </label>
+                <input id="reg-nim" type="text" name="nim_nip" required maxlength="30"
+                       value="{{ old('nim_nip') }}" placeholder="Nomor identitas" class="{{ $inputBase }}">
+                @error('nim_nip')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label for="reg-email" class="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Email <span class="text-rose-500">*</span>
+                </label>
+                <input id="reg-email" type="email" name="email" required
+                       value="{{ old('email') }}" placeholder="email@kampus.ac.id" class="{{ $inputBase }}">
+                @error('email')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label for="reg-hp" class="block text-xs font-semibold text-slate-700 mb-1.5">No. HP</label>
+                <input id="reg-hp" type="tel" name="no_hp"
+                       value="{{ old('no_hp') }}" placeholder="08xxxxxxxxxx" class="{{ $inputBase }}">
+                @error('no_hp')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label for="reg-pass" class="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Password <span class="text-rose-500">*</span>
+                </label>
+                <input id="reg-pass" type="password" name="password" required minlength="8"
+                       placeholder="Minimal 8 karakter" class="{{ $inputBase }}">
+                @error('password')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div>
+                <label for="reg-pass2" class="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Konfirmasi Password <span class="text-rose-500">*</span>
+                </label>
+                <input id="reg-pass2" type="password" name="password_confirmation" required minlength="8"
+                       placeholder="Ulangi password" class="{{ $inputBase }}">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Upload KTM / KTP <span class="text-slate-400 font-normal">(Opsional)</span>
+                </label>
+                <input type="file" name="ktm" accept=".jpg,.jpeg,.png,.pdf"
+                       class="w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-900 file:text-white hover:file:bg-blue-800">
+                <p class="mt-1 text-xs text-slate-400">Format JPG, PNG, atau PDF. Maks 2 MB.</p>
+                @error('ktm')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
             </div>
 
             <button type="submit"
-                    class="w-full h-11 bg-[#0f2540] hover:bg-[#0b1c31] text-white text-sm font-bold rounded-xl shadow-md transition">
+                    class="w-full h-11 bg-blue-900 hover:bg-blue-800 text-white text-sm font-bold rounded-lg shadow-sm transition">
                 Daftar
             </button>
 
-            <p class="text-center text-[11px] text-slate-500">
+            <p class="text-center text-xs text-slate-500">
                 Sudah punya akun?
-                <button type="button" @click="switchTab('login')" class="font-extrabold text-blue-700 hover:underline">Masuk</button>
+                <button type="button" @click="switchTab('login')"
+                        class="font-bold text-blue-900 hover:underline">Masuk</button>
             </p>
         </form>
     </div>
 
-    {{-- ============ POPUP: AKUN SEDANG DIVERIFIKASI ============ --}}
-    <div x-show="pending" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    {{-- POPUP --}}
+    <div x-show="pending" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="pending = false"></div>
         <div class="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 text-center space-y-3">
             <div class="mx-auto w-14 h-14 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
-                <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/></svg>
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/>
+                </svg>
             </div>
-            <h3 class="text-base font-extrabold text-slate-900">Akun Anda Sedang Diverifikasi Admin</h3>
+            <h3 class="text-base font-bold text-slate-900">Akun Sedang Diverifikasi</h3>
             <p class="text-xs text-slate-500 leading-relaxed">
                 Terima kasih telah mendaftar. Data Anda sedang diperiksa oleh admin kampus.
-                Anda <strong class="text-slate-700">belum dapat login</strong> sampai akun disetujui. Silakan coba login kembali nanti.
+                Anda <strong class="text-slate-700">belum dapat login</strong> sampai akun disetujui.
             </p>
             <button type="button" @click="pending = false"
-                    class="w-full h-10 bg-[#0f2540] hover:bg-[#0b1c31] text-white text-xs font-bold rounded-lg transition">Mengerti</button>
+                    class="w-full h-10 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg transition">
+                Mengerti
+            </button>
         </div>
     </div>
 </div>

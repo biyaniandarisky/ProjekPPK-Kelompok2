@@ -18,6 +18,11 @@ return new class extends Migration
             $table->string('foto')->nullable();
             $table->enum('status', ['aktif', 'dalam_perbaikan', 'nonaktif'])->default('aktif');
             $table->timestamps();
+
+            // Index untuk performa filter
+            $table->index('tipe');
+            $table->index('lokasi');
+            $table->index('status');
         });
     }
 

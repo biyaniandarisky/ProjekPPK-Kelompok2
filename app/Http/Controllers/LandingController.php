@@ -44,14 +44,12 @@ class LandingController extends Controller
 
         $facilities = $query->orderBy('id')->get();
 
-        // Daftar lokasi / gedung untuk dropdown filter
         $lokasiList = Facility::where('status', '!=', 'nonaktif')
             ->orderBy('lokasi')
             ->pluck('lokasi')
             ->unique()
             ->values();
 
-        // Total fasilitas tanpa filter (untuk keterangan judul)
         $totalFasilitas = Facility::where('status', '!=', 'nonaktif')->count();
 
         $today   = now()->toDateString();
@@ -62,7 +60,6 @@ class LandingController extends Controller
 
     /**
      * JSON ketersediaan slot per 30 menit untuk satu fasilitas pada satu tanggal.
-     * Fasilitas berstatus "dalam_perbaikan" mengembalikan slot kosong.
      */
     public function checkAvailability(Request $request, $id)
     {
@@ -74,9 +71,10 @@ class LandingController extends Controller
 
         $slots = [];
         if (!$isMaintenance) {
-            $approved = Reservation::where('facility_id', $facility->id)
+            // Cek pending + approved (slot pending dikunci)
+            $booked = Reservation::where('facility_id', $facility->id)
                 ->where('tanggal', $tanggal)
-                ->where('status', 'approved')
+                ->whereIn('status', ['pending', 'approved'])
                 ->get(['start_time', 'end_time']);
 
             $now = now();
@@ -84,10 +82,11 @@ class LandingController extends Controller
             foreach (self::OPERATIONAL_SLOTS as $start) {
                 $end = Carbon::createFromFormat('H:i', $start)->addMinutes(30)->format('H:i');
 
-                $isBooked = $approved->contains(function ($res) use ($start, $end) {
-                    // Overlap: slotStart < resEnd && slotEnd > resStart
-                    return $start < substr($res->end_time, 0, 5)
-                        && $end > substr($res->start_time, 0, 5);
+                // Rumus overlap: slotStart < resEnd AND slotEnd > resStart
+                $isBooked = $booked->contains(function ($res) use ($start, $end) {
+                    $resStart = substr($res->start_time, 0, 5);
+                    $resEnd   = substr($res->end_time, 0, 5);
+                    return $start < $resEnd && $end > $resStart;
                 });
 
                 $slotStartAt = Carbon::createFromFormat('Y-m-d H:i', "{$tanggal} {$start}");
@@ -121,8 +120,7 @@ class LandingController extends Controller
 
     /**
      * Klik "Pesan" dari popup jadwal.
-     * Pilihan slot disimpan di SESSION supaya tidak hilang ketika Pengunjung
-     * diarahkan ke halaman login / daftar, lalu dipakai lagi setelah login.
+     * Pilihan slot disimpan di SESSION.
      */
     public function bookingIntent(Request $request)
     {
@@ -143,7 +141,7 @@ class LandingController extends Controller
         $user = $request->user();
 
         // Petugas & admin tidak memesan fasilitas
-        if ($user && !$user->isPengguna()) {
+        if ($user && $user->role !== 'pengguna') {
             return response()->json([
                 'message' => 'Hanya akun Pengguna (Mahasiswa/Dosen/Staf) yang dapat memesan fasilitas.',
             ], 403);
