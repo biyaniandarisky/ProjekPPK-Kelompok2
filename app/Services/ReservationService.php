@@ -10,6 +10,7 @@ use App\Models\Reservation;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ReservationService
 {
@@ -23,6 +24,43 @@ class ReservationService
     private const MAX_RESERVASI_AKTIF = 10;
     private const MAX_SPAM_PER_HARI = 5;
 
+    /**
+     * Memeriksa bentrok jadwal dengan reservasi lain yang telah disetujui (status: approved)
+     * Menggunakan interval overlap check: (A_start < B_end) AND (A_end > B_start)
+     */
+    public function hasConflict(int $facilityId, mixed $tanggal, mixed $startTime, mixed $endTime, ?int $excludeReservationId = null): bool
+    {
+        // Pastikan tanggal berupa string Y-m-d yang valid
+        $parsedTanggal = $tanggal instanceof Carbon 
+            ? $tanggal->format('Y-m-d') 
+            : Carbon::parse((string) $tanggal)->format('Y-m-d');
+
+        // Pastikan format waktu aman (mengambil string waktu H:i:s)
+        $startStr = is_string($startTime) && str_contains($startTime, ':') ? $startTime : ((string)$startTime . ':00:00');
+        $endStr   = is_string($endTime) && str_contains($endTime, ':') ? $endTime : ((string)$endTime . ':00:00');
+
+        $start = Carbon::parse($startStr)->format('H:i:s');
+        $end   = Carbon::parse($endStr)->format('H:i:s');
+
+        $query = Reservation::query()
+            ->where('facility_id', $facilityId)
+            ->where('tanggal', $parsedTanggal)
+            ->where('status', 'approved')
+            ->where(function ($q) use ($start, $end) {
+                $q->where('start_time', '<', $end)
+                  ->where('end_time', '>', $start);
+            });
+
+        if ($excludeReservationId) {
+            $query->where('id', '!=', $excludeReservationId);
+        }
+
+        return $query->exists();
+    }
+
+    /**
+     * Membuat reservasi baru dengan validasi lengkap
+     */
     public function create(array $data, int $userId): Reservation
     {
         $facility = Facility::find($data['facility_id']);
@@ -55,7 +93,7 @@ class ReservationService
             throw new InvalidSlotException('Durasi reservasi maksimal ' . (self::DURASI_MAX / 60) . ' jam.');
         }
 
-        if ($start->diffInMinutes(now(), false) < self::MIN_JAM_SEBELUM) {
+        if (now()->diffInMinutes($start, false) < self::MIN_JAM_SEBELUM) {
             throw new InvalidSlotException('Reservasi minimal ' . (self::MIN_JAM_SEBELUM / 60) . ' jam sebelum waktu mulai.');
         }
 
@@ -110,6 +148,9 @@ class ReservationService
         return $reservasi;
     }
 
+    /**
+     * Membatalkan reservasi secara mandiri oleh pengguna
+     */
     public function cancel(int $reservationId, int $userId, string $alasan = 'Dibatalkan oleh pengguna.'): Reservation
     {
         $reservasi = Reservation::where('user_id', $userId)->find($reservationId);
@@ -121,7 +162,12 @@ class ReservationService
             throw new InvalidSlotException('Reservasi ini sudah tidak dapat dibatalkan.');
         }
 
-        $startDateTime = Carbon::parse($reservasi->tanggal . ' ' . $reservasi->start_time);
+        $tanggalSaja = $reservasi->tanggal instanceof Carbon 
+            ? $reservasi->tanggal->format('Y-m-d') 
+            : Carbon::parse($reservasi->tanggal)->format('Y-m-d');
+
+        $startDateTime = Carbon::parse($tanggalSaja . ' ' . $reservasi->start_time);
+        
         if (now()->diffInMinutes($startDateTime, false) < self::MIN_JAM_SEBELUM) {
             throw new InvalidSlotException('Pembatalan hanya bisa minimal ' . (self::MIN_JAM_SEBELUM / 60) . ' jam sebelum waktu mulai.');
         }
@@ -136,6 +182,9 @@ class ReservationService
         return $reservasi;
     }
 
+    /**
+     * Menyetujui reservasi oleh petugas
+     */
     public function approve(int $reservationId, int $petugasId): Reservation
     {
         $reservasi = Reservation::find($reservationId);
@@ -147,12 +196,8 @@ class ReservationService
             throw new InvalidSlotException('Reservasi ini sudah tidak berstatus menunggu.');
         }
 
-        $tanggal = $reservasi->tanggal instanceof Carbon
-            ? $reservasi->tanggal->format('Y-m-d')
-            : $reservasi->tanggal;
-
-        if ($this->hasConflict($reservasi->facility_id, $tanggal, $reservasi->start_time, $reservasi->end_time, $reservasi->id)) {
-            throw new ReservationConflictException('Jadwal bertabrakan dengan reservasi lain.');
+        if ($this->hasConflict($reservasi->facility_id, $reservasi->tanggal, $reservasi->start_time, $reservasi->end_time, $reservasi->id)) {
+            throw new ReservationConflictException('Jadwal bertabrakan dengan reservasi lain yang sudah disetujui.');
         }
 
         $reservasi->update([
@@ -165,6 +210,9 @@ class ReservationService
         return $reservasi;
     }
 
+    /**
+     * Menolak reservasi oleh petugas
+     */
     public function reject(int $reservationId, int $petugasId, string $alasan): Reservation
     {
         $reservasi = Reservation::find($reservationId);
@@ -185,27 +233,6 @@ class ReservationService
         $this->notifyUserRejected($reservasi, $alasan);
 
         return $reservasi;
-    }
-
-    public function hasConflict(int $facilityId, string $tanggal, string $startTime, string $endTime, ?int $excludeId = null): bool
-    {
-        $start = Carbon::parse($startTime)->format('H:i:s');
-        $end   = Carbon::parse($endTime)->format('H:i:s');
-
-        $query = Reservation::query()
-            ->where('facility_id', $facilityId)
-            ->where('tanggal', $tanggal)
-            ->whereIn('status', ['pending', 'approved'])
-            ->where(function ($q) use ($start, $end) {
-                $q->where('start_time', '<', $end)
-                  ->where('end_time', '>', $start);
-            });
-
-        if ($excludeId) {
-            $query->where('id', '!=', $excludeId);
-        }
-
-        return $query->exists();
     }
 
     private function validateSlot(Carbon $start, Carbon $end): void
@@ -272,7 +299,7 @@ class ReservationService
             'pesan'          => 'Reservasi Anda di ' . ($reservasi->facility->nama_fasilitas ?? 'fasilitas')
                                 . ' telah disetujui.',
             'tipe'           => 'success',
-            'link'           => route('pengguna.reservasi.index'),
+            'link'           => route('pengguna.reservasi.cetak', $reservasi->id),
         ]);
     }
 

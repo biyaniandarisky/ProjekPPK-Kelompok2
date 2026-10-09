@@ -100,7 +100,8 @@
         <div class="lg:col-span-3">
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                 <form action="{{ route('pengguna.reservasi.store') }}" method="POST" class="space-y-5"
-                      x-data="{ submitting: false }" @submit="submitting = true">
+                      x-data="{ submitting: false }"
+                      @submit="if (!confirm('Ajukan reservasi ini? Pastikan jadwal dan tujuan sudah benar.')) { $event.preventDefault(); return; } submitting = true">
                     @csrf
                     <input type="hidden" name="facility_id" :value="facilityId">
                     <input type="hidden" name="tanggal" :value="tanggal">

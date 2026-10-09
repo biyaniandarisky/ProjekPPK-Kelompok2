@@ -3,6 +3,11 @@
 @section('title', 'Antrian Laporan')
 
 @section('content')
+<style>
+    .row-no { counter-reset: rowno; }
+    .row-no > .row-item { counter-increment: rowno; }
+    .row-no .no-cell::before { content: counter(rowno); }
+</style>
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4"
      x-data="{
         filterStatus: 'semua',
@@ -62,7 +67,7 @@
 
         {{-- Header Desktop --}}
         <div class="hidden lg:grid grid-cols-12 gap-3 px-5 py-3 bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            <div class="col-span-1">ID</div>
+            <div class="col-span-1">No</div>
             <div class="col-span-3">Fasilitas</div>
             <div class="col-span-3">Pelapor</div>
             <div class="col-span-2">Kategori</div>
@@ -71,7 +76,7 @@
         </div>
 
         {{-- Rows --}}
-        <div class="divide-y divide-slate-100">
+        <div class="divide-y divide-slate-100 row-no">
             @forelse($reports as $l)
                 @php
                     $statusMap = [
@@ -81,7 +86,7 @@
                         'ditolak'  => ['Ditolak',  'bg-rose-50 text-rose-700 border-rose-200'],
                     ];
                     $badge = $statusMap[$l->status_laporan] ?? ['—', 'bg-slate-100 text-slate-600 border-slate-200'];
-                    $haystack = collect([$l->id, $l->user->name ?? '', $l->facility->nama_fasilitas ?? '', $l->kategori_laporan])->implode(' ');
+                    $haystack = collect([$l->user->name ?? '', $l->facility->nama_fasilitas ?? '', $l->kategori_laporan])->implode(' ');
 
                     $detailArray = [
                         'id'         => $l->id,
@@ -101,7 +106,7 @@
                 @endphp
 
                 <div x-show="(filterStatus === 'semua' || filterStatus === '{{ $l->status_laporan }}') && matchSearch(@js($haystack))"
-                     class="lg:grid lg:grid-cols-12 lg:gap-3 lg:items-center px-5 py-3.5 hover:bg-slate-50 transition">
+                     class="row-item lg:grid lg:grid-cols-12 lg:gap-3 lg:items-center px-5 py-3.5 hover:bg-slate-50 transition">
 
                     {{-- Mobile: Card Layout --}}
                     <div class="lg:hidden space-y-3">
@@ -109,7 +114,7 @@
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <p class="font-bold text-slate-900 text-sm truncate">{{ $l->facility->nama_fasilitas ?? '-' }}</p>
-                                    <span class="text-[10px] text-slate-400 font-mono">#{{ $l->id }}</span>
+                                    <span class="text-[10px] text-slate-400 font-mono">No. <span class="no-cell"></span></span>
                                 </div>
                                 <p class="text-xs text-slate-500 mt-0.5">{{ $l->user->name ?? '-' }}</p>
                                 <p class="text-xs text-slate-500">
@@ -158,7 +163,7 @@
                     <div class="hidden lg:contents">
                         {{-- ID --}}
                         <div class="col-span-1">
-                            <span class="text-xs font-mono text-slate-500">#{{ $l->id }}</span>
+                            <span class="text-xs font-mono text-slate-500 no-cell"></span>
                         </div>
 
                         {{-- Fasilitas --}}
@@ -243,7 +248,6 @@
             <div class="flex justify-between items-center px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
                 <h3 class="font-black text-slate-900 text-sm">
                     Detail Laporan
-                    <span class="text-xs font-normal text-slate-400 ml-1" x-text="'#' + (detail?.id ?? '')"></span>
                 </h3>
                 <button type="button" @click="modalDetail = false"
                         class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition">

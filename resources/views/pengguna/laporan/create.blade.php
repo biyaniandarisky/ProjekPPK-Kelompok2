@@ -38,7 +38,7 @@
     @endif
 
     <form action="{{ route('pengguna.laporan.store') }}" method="POST" enctype="multipart/form-data"
-          @submit="submitting = true"
+          @submit="if (!confirm('Kirim laporan kerusakan ini? Pastikan data yang Anda isi sudah benar.')) { $event.preventDefault(); return; } submitting = true"
           class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
         @csrf
 

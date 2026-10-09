@@ -151,7 +151,7 @@ class PetugasController extends Controller
             'link'           => route('pengguna.reservasi.index'),
         ]);
 
-        return back()->with('success', "Reservasi #{$res->id} berhasil disetujui.");
+        return back()->with('success', "Reservasi berhasil disetujui.");
     }
 
     /**
@@ -185,7 +185,7 @@ class PetugasController extends Controller
             'link'    => route('pengguna.reservasi.index'),
         ]);
 
-        return back()->with('info', "Reservasi #{$res->id} telah ditolak.");
+        return back()->with('info', "Reservasi telah ditolak.");
     }
 
     /**
@@ -217,7 +217,7 @@ class PetugasController extends Controller
             'link'    => route('pengguna.reservasi.index'),
         ]);
 
-        return back()->with('warning', "Reservasi #{$res->id} dibatalkan secara darurat.");
+        return back()->with('warning', "Reservasi dibatalkan secara darurat.");
     }
 
     /**
