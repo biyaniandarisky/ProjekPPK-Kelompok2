@@ -91,7 +91,7 @@
         <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             @foreach($facilities as $fac)
                 @php
-                    $perbaikan = $fac->status === 'dalam_perbaikan';
+                    $perbaikan = in_array($fac->status, ['dalam_perbaikan', 'selesai'], true);
                     $payload = [
                         'id' => $fac->id,
                         'nama' => $fac->nama_fasilitas,

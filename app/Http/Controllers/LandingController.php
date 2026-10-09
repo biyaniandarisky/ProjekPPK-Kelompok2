@@ -67,7 +67,7 @@ class LandingController extends Controller
         $today    = now()->toDateString();
         $tanggal  = $this->normalizeDate($request->get('tanggal'), $today);
 
-        $isMaintenance = $facility->status === 'dalam_perbaikan';
+        $isMaintenance = in_array($facility->status, ['dalam_perbaikan', 'selesai'], true);
 
         $slots = [];
         if (!$isMaintenance) {

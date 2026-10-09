@@ -259,42 +259,24 @@ class PetugasController extends Controller
         ]);
 
         $report = Report::with('facility')->findOrFail($id);
-
-        if ($report->status_laporan !== 'diproses') {
-            return back()->withErrors(['msg' => 'Hanya laporan yang sedang diproses yang bisa diselesaikan.']);
-        }
-
         $report->update([
             'status_laporan'   => 'selesai',
             'catatan_resolusi' => $request->catatan_resolusi,
             'petugas_id'       => auth()->id(),
         ]);
 
-        // Cek laporan lain di fasilitas yang sama
-        $masihAda = Report::where('facility_id', $report->facility_id)
+        // Fasilitas pindah ke "selesai" hanya jika tidak ada laporan terbuka lain.
+        $masihTerbuka = $report->facility->reports()
             ->whereIn('status_laporan', ['baru', 'diproses'])
             ->exists();
 
-        if (!$masihAda) {
-            $report->facility->update(['status' => 'aktif']);
+        if ($masihTerbuka) {
+            return back()->with('success', 'Laporan selesai. Masih ada laporan lain yang terbuka pada fasilitas ini.');
         }
 
-        Notification::create([
-            'user_id' => $report->user_id,
-            'judul'   => 'Laporan Kendala Selesai',
-            'pesan'   => 'Laporan kendala pada ' . ($report->facility->nama_fasilitas ?? 'fasilitas') . ' telah selesai ditangani. Catatan: ' . $request->catatan_resolusi,
-            'tipe'    => 'success',
-            'link'    => route('pengguna.laporan.index'),
-        ]);
+        $report->facility->update(['status' => 'selesai']);
 
-        $msg = "Laporan selesai.";
-        if (!$masihAda) {
-            $msg .= " Status {$report->facility->nama_fasilitas} dikembalikan ke Aktif.";
-        } else {
-            $msg .= " Fasilitas masih dalam perbaikan karena ada laporan lain.";
-        }
-
-        return back()->with('success', $msg);
+        return back()->with('success', "Laporan selesai. Perbaikan {$report->facility->nama_fasilitas} selesai, aktifkan dari menu Fasilitas.");
     }
 
     /**
@@ -310,6 +292,7 @@ class PetugasController extends Controller
         $facility  = Facility::findOrFail($id);
         $petugasId = auth()->id();
 
+        // Aksi 1: Dalam Perbaikan. Laporan "baru" ikut jadi "diproses".
         if ($request->status === 'dalam_perbaikan') {
             $facility->update(['status' => 'dalam_perbaikan']);
 
@@ -325,13 +308,15 @@ class PetugasController extends Controller
                 . ($terdampak > 0 ? " {$terdampak} laporan terkait otomatis berubah ke Diproses." : ''));
         }
 
+        // Aksi 2: Selesai. Hanya boleh dari Dalam Perbaikan.
+        // Laporan terbuka ditutup, tetapi fasilitas BELUM aktif.
         if ($request->status === 'selesai') {
+            if ($facility->status !== 'dalam_perbaikan') {
+                return back()->with('info', "{$facility->nama_fasilitas} tidak sedang dalam perbaikan.");
+            }
+
             $catatan = $request->catatan_resolusi
                 ?: 'Perbaikan telah diselesaikan oleh petugas sarana.';
-
-            $laporanTerdampak = $facility->reports()
-                ->whereIn('status_laporan', ['baru', 'diproses'])
-                ->get();
 
             $terdampak = $facility->reports()
                 ->whereIn('status_laporan', ['baru', 'diproses'])
@@ -342,23 +327,19 @@ class PetugasController extends Controller
                     'updated_at'       => now(),
                 ]);
 
-            foreach ($laporanTerdampak as $report) {
-                Notification::create([
-                    'user_id' => $report->user_id,
-                    'judul'   => 'Perbaikan Fasilitas Selesai',
-                    'pesan'   => 'Perbaikan pada fasilitas ' . $facility->nama_fasilitas . ' telah selesai. Catatan: ' . $catatan,
-                    'tipe'    => 'success',
-                    'link'    => route('pengguna.laporan.index'),
-                ]);
-            }
+            $facility->update(['status' => 'selesai']);
 
-            $facility->update(['status' => 'aktif']);
-
-            return back()->with('success', "Perbaikan {$facility->nama_fasilitas} selesai dan fasilitas kembali Aktif."
+            return back()->with('success', "Perbaikan {$facility->nama_fasilitas} selesai. Aktifkan kembali agar bisa dipesan."
                 . ($terdampak > 0 ? " {$terdampak} laporan terkait otomatis ditandai Selesai." : ''));
         }
 
+        // Aksi 3: Aktifkan. Hanya boleh setelah perbaikan diselesaikan.
+        if ($facility->status === 'dalam_perbaikan') {
+            return back()->with('info', "Selesaikan perbaikan {$facility->nama_fasilitas} dulu sebelum diaktifkan.");
+        }
+
         $facility->update(['status' => 'aktif']);
-        return back()->with('info', "Status {$facility->nama_fasilitas} diubah ke Aktif.");
+
+        return back()->with('success', "{$facility->nama_fasilitas} sudah Aktif kembali dan bisa dipesan.");
     }
 }

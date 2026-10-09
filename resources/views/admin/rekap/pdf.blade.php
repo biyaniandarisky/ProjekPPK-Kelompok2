@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>Rekap KampusReserve</title>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; font-size: 12px; margin: 30px; color: #0f172a; }
+        body { font-family: 'Open Sans', Arial, sans-serif; font-size: 12px; margin: 30px; color: #0f172a; }
         .header { border-bottom: 3px double #1e3a8a; padding-bottom: 12px; margin-bottom: 20px; text-align: center; }
         .header h1 { font-size: 20px; margin: 0 0 4px; color: #1e3a8a; text-transform: uppercase; letter-spacing: 1px; }
         .header h2 { font-size: 14px; margin: 0 0 4px; color: #334155; font-weight: normal; }

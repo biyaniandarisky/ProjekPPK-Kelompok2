@@ -32,8 +32,8 @@
 
     {{-- FILTER & SEARCH --}}
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
-        <div class="grid grid-cols-3 gap-2">
-            @foreach(['semua' => 'Semua', 'aktif' => 'Aktif', 'dalam_perbaikan' => 'Perbaikan'] as $key => $label)
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            @foreach(['semua' => 'Semua', 'aktif' => 'Aktif', 'dalam_perbaikan' => 'Perbaikan', 'selesai' => 'Selesai'] as $key => $label)
                 <button @click="filterStatus = '{{ $key }}'"
                         :class="filterStatus === '{{ $key }}' ? 'bg-blue-900 text-white border-blue-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
                         class="py-2.5 px-2 rounded-xl border text-xs font-bold transition text-center truncate">
@@ -67,6 +67,7 @@
                 @php
                     $statusBadge = match($f->status) {
                         'dalam_perbaikan' => ['Dalam Perbaikan', 'bg-amber-50 text-amber-700 border-amber-200'],
+                        'selesai'         => ['Selesai', 'bg-blue-50 text-blue-700 border-blue-200'],
                         'nonaktif'        => ['Nonaktif', 'bg-rose-50 text-rose-700 border-rose-200'],
                         default           => ['Aktif', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
                     };
@@ -92,37 +93,35 @@
                             <span class="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider {{ $statusBadge[1] }}">{{ $statusBadge[0] }}</span>
                         </div>
                         <div class="flex items-center gap-2 pt-3 border-t border-slate-100 [&>*]:flex-1 [&_button]:w-full [&_button]:justify-center">
-                            @if($f->status !== 'dalam_perbaikan')
-                <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST"
-                      onsubmit="return confirm('Tandai {{ addslashes($f->nama_fasilitas) }} sebagai Dalam Perbaikan?')">
-                    @csrf
-                    <input type="hidden" name="status" value="dalam_perbaikan">
-                    <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                        Perbaikan
-                    </button>
-                </form>
-            @endif
-
-            @if($f->status === 'dalam_perbaikan')
-                <button type="button" @click="modalFasilitas = {{ $f->id }}"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    Selesai
-                </button>
-            @endif
-
-            @if($f->status !== 'aktif')
-                <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST"
-                      onsubmit="return confirm('Aktifkan kembali {{ addslashes($f->nama_fasilitas) }}?')">
-                    @csrf
-                    <input type="hidden" name="status" value="aktif">
-                    <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg transition">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                        Aktifkan
-                    </button>
-                </form>
-            @endif
+                            {{-- Alur: Aktif -> Perbaikan -> Selesai -> Aktifkan --}}
+                            @if($f->status === 'aktif')
+                                <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST"
+                                      onsubmit="return confirm('Tandai {{ addslashes($f->nama_fasilitas) }} sebagai Dalam Perbaikan?')">
+                                    @csrf
+                                    <input type="hidden" name="status" value="dalam_perbaikan">
+                                    <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                        Perbaikan
+                                    </button>
+                                </form>
+                            @elseif($f->status === 'dalam_perbaikan')
+                                <button type="button" @click="modalFasilitas = {{ $f->id }}"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                    Selesai
+                                </button>
+                            @else
+                                {{-- Status "selesai" (atau nonaktif lama): baru bisa diaktifkan --}}
+                                <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST"
+                                      onsubmit="return confirm('Aktifkan {{ addslashes($f->nama_fasilitas) }} agar bisa dipesan lagi?')">
+                                    @csrf
+                                    <input type="hidden" name="status" value="aktif">
+                                    <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                        Aktifkan
+                                    </button>
+                                </form>
+                            @endif
                         </div>
                     </div>
 
@@ -142,37 +141,35 @@
                             <span class="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider {{ $statusBadge[1] }}">{{ $statusBadge[0] }}</span>
                         </div>
                         <div class="col-span-3 flex items-center justify-end gap-1.5">
-                            @if($f->status !== 'dalam_perbaikan')
-                <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST"
-                      onsubmit="return confirm('Tandai {{ addslashes($f->nama_fasilitas) }} sebagai Dalam Perbaikan?')">
-                    @csrf
-                    <input type="hidden" name="status" value="dalam_perbaikan">
-                    <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                        Perbaikan
-                    </button>
-                </form>
-            @endif
-
-            @if($f->status === 'dalam_perbaikan')
-                <button type="button" @click="modalFasilitas = {{ $f->id }}"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    Selesai
-                </button>
-            @endif
-
-            @if($f->status !== 'aktif')
-                <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST"
-                      onsubmit="return confirm('Aktifkan kembali {{ addslashes($f->nama_fasilitas) }}?')">
-                    @csrf
-                    <input type="hidden" name="status" value="aktif">
-                    <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg transition">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                        Aktifkan
-                    </button>
-                </form>
-            @endif
+                            {{-- Alur: Aktif -> Perbaikan -> Selesai -> Aktifkan --}}
+                            @if($f->status === 'aktif')
+                                <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST"
+                                      onsubmit="return confirm('Tandai {{ addslashes($f->nama_fasilitas) }} sebagai Dalam Perbaikan?')">
+                                    @csrf
+                                    <input type="hidden" name="status" value="dalam_perbaikan">
+                                    <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                        Perbaikan
+                                    </button>
+                                </form>
+                            @elseif($f->status === 'dalam_perbaikan')
+                                <button type="button" @click="modalFasilitas = {{ $f->id }}"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                    Selesai
+                                </button>
+                            @else
+                                {{-- Status "selesai" (atau nonaktif lama): baru bisa diaktifkan --}}
+                                <form action="{{ route('petugas.fasilitas.status', $f->id) }}" method="POST"
+                                      onsubmit="return confirm('Aktifkan {{ addslashes($f->nama_fasilitas) }} agar bisa dipesan lagi?')">
+                                    @csrf
+                                    <input type="hidden" name="status" value="aktif">
+                                    <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                        Aktifkan
+                                    </button>
+                                </form>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -205,7 +202,7 @@
                     </div>
                     <div class="px-6 pt-4">
                         <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 leading-relaxed">
-                            Fasilitas akan kembali <strong>Aktif</strong>.
+                            Fasilitas akan ditandai <strong>Selesai</strong>. Setelah itu tombol <strong>Aktifkan</strong> muncul agar fasilitas bisa dipesan lagi.
                             @if($f->laporan_terbuka_count > 0)
                                 <strong>{{ $f->laporan_terbuka_count }} laporan</strong> yang masih terbuka otomatis ditandai <strong>Selesai</strong>.
                             @else

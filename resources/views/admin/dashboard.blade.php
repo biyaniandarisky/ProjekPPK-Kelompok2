@@ -12,6 +12,7 @@
     $badge = [
         'aktif'            => 'bg-emerald-50 text-emerald-700',
         'dalam_perbaikan'  => 'bg-amber-50 text-amber-700',
+        'selesai'          => 'bg-blue-50 text-blue-700',
         'nonaktif'         => 'bg-rose-50 text-rose-700',
     ];
 
@@ -25,6 +26,7 @@
     $statusLabel = [
         'aktif'            => 'Aktif',
         'dalam_perbaikan'  => 'Maintenance',
+        'selesai'          => 'Selesai Diperbaiki',
         'nonaktif'         => 'Nonaktif',
     ];
 
@@ -813,6 +815,7 @@
                     <select name="status" x-model="form.status" class="{{ $input }}">
                         <option value="aktif">Aktif</option>
                         <option value="dalam_perbaikan">Maintenance</option>
+                        <option value="selesai">Selesai Diperbaiki</option>
                         <option value="nonaktif">Nonaktif</option>
                     </select>
                 </div>

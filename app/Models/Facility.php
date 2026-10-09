@@ -171,6 +171,7 @@ class Facility extends Model
         return match ($this->status) {
             'aktif'            => 'Tersedia',
             'dalam_perbaikan'  => 'Dalam Perbaikan',
+            'selesai'          => 'Selesai Diperbaiki',
             'nonaktif'         => 'Nonaktif',
             default            => ucfirst($this->status),
         };
@@ -184,6 +185,7 @@ class Facility extends Model
         return match ($this->status) {
             'aktif'            => 'bg-emerald-50 text-emerald-700',
             'dalam_perbaikan'  => 'bg-amber-50 text-amber-700',
+            'selesai'          => 'bg-blue-50 text-blue-700',
             'nonaktif'         => 'bg-slate-100 text-slate-600',
             default            => 'bg-slate-100 text-slate-600',
         };

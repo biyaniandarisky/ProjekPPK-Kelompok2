@@ -242,7 +242,7 @@ class AdminController extends Controller
             'lokasi'         => 'required|string|max:100',
             'kapasitas'      => 'required|integer|min:1',
             'deskripsi'      => 'nullable|string',
-            'status'         => 'required|in:aktif,dalam_perbaikan,nonaktif',
+            'status'         => 'required|in:aktif,dalam_perbaikan,selesai,nonaktif',
             'foto'           => 'nullable|image|max:2048',
         ];
     }
