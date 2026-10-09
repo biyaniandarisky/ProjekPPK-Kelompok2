@@ -7,6 +7,12 @@
     use Illuminate\Support\Js;
 
     $pendingCount = count($pendingUsers);
+
+    // Daftar pengguna (non-petugas). Kirim dari controller sebagai $pengguna.
+    $penggunaList  = $pengguna ?? collect();
+    $totalPetugas  = count($petugas);
+    $totalPengguna = count($penggunaList);
+
     $input = 'w-full h-11 px-4 border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-900 transition';
 
     $badge = [
@@ -32,19 +38,23 @@
 
     $maxOcc = max(1, max($occupancy ?: [1]));
 
+    // Menu sidebar
     $menu = [
-        'dashboard'  => ['Dashboard', 'Dashboard Admin'],
-        'petugas'    => ['Akun Petugas', 'Akun Petugas'],
-        'verifikasi' => ['Verifikasi Pengguna', 'Verifikasi Pengguna'],
-        'fasilitas'  => ['Data Fasilitas', 'Data Fasilitas'],
-        'rekap'      => ['Rekapitulasi', 'Rekapitulasi & Ekspor'],
+        'dashboard'   => ['Dashboard', 'Dashboard Admin'],
+        'tambah_akun' => ['Tambah Akun', 'Tambah Akun'],
+        'data_akun'   => ['Data Akun', 'Data Akun'],
+        'verifikasi'  => ['Verifikasi Pengguna', 'Verifikasi Pengguna'],
+        'fasilitas'   => ['Data Fasilitas', 'Data Fasilitas'],
+        'rekap'       => ['Rekapitulasi', 'Rekapitulasi & Ekspor'],
     ];
 
+    // Kartu statistik (sekarang bisa diklik -> 'page' = tujuan halaman)
     $statCards = [
         [
             'label' => 'Total Pengguna',
             'value' => $totalUsers,
             'subtitle' => 'Terdaftar di sistem',
+            'page' => 'data_akun',
             'gradient' => 'from-blue-600 to-blue-800',
             'text_color' => 'text-blue-100',
             'icon' => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
@@ -53,6 +63,7 @@
             'label' => 'Reservasi Bulan Ini',
             'value' => $reservationsThisMonth,
             'subtitle' => 'Aktif & riwayat',
+            'page' => 'rekap',
             'gradient' => 'from-emerald-500 to-emerald-700',
             'text_color' => 'text-emerald-50',
             'icon' => 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
@@ -61,6 +72,7 @@
             'label' => 'Laporan Bulan Ini',
             'value' => $reportsThisMonth,
             'subtitle' => 'Perlu ditindak',
+            'page' => 'rekap',
             'gradient' => 'from-amber-400 to-amber-500',
             'text_color' => 'text-amber-50',
             'icon' => 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
@@ -69,9 +81,54 @@
             'label' => 'Pending Verifikasi',
             'value' => $pendingCount,
             'subtitle' => 'Menunggu approval',
+            'page' => 'verifikasi',
             'gradient' => 'from-rose-500 to-rose-700',
             'text_color' => 'text-rose-50',
             'icon' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+        ],
+    ];
+
+    // Kartu pintasan di dashboard
+    $shortcuts = [
+        [
+            'title' => 'Tambah Akun',
+            'badge' => 'Manajemen User',
+            'desc' => 'Daftarkan akun petugas atau pengguna baru langsung tanpa verifikasi.',
+            'page' => 'tambah_akun',
+            'overlay' => 'from-blue-950/90 to-blue-900/80',
+            'badge_color' => 'bg-blue-500/30 text-blue-200 border-blue-400/30',
+            'image' => asset('images/reservasi.jpg'),
+            'cta' => 'Tambah Akun',
+        ],
+        [
+            'title' => 'Data Akun',
+            'badge' => 'Daftar User',
+            'desc' => 'Lihat seluruh akun petugas dan pengguna yang terdaftar.',
+            'page' => 'data_akun',
+            'overlay' => 'from-indigo-950/90 to-indigo-900/80',
+            'badge_color' => 'bg-indigo-500/30 text-indigo-200 border-indigo-400/30',
+            'image' => asset('images/reservasi.jpg'),
+            'cta' => 'Buka Data Akun',
+        ],
+        [
+            'title' => 'Verifikasi Pengguna',
+            'badge' => 'Approval Akun',
+            'desc' => 'Verifikasi atau tolak registrasi mandiri pengguna baru.',
+            'page' => 'verifikasi',
+            'overlay' => 'from-amber-950/90 to-amber-900/80',
+            'badge_color' => 'bg-amber-500/30 text-amber-200 border-amber-400/30',
+            'image' => asset('images/laporan.jpg'),
+            'cta' => 'Buka Verifikasi',
+        ],
+        [
+            'title' => 'Data Fasilitas',
+            'badge' => 'Master Data',
+            'desc' => 'Kelola seluruh data fasilitas kampus: tambah, edit, nonaktifkan.',
+            'page' => 'fasilitas',
+            'overlay' => 'from-emerald-950/90 to-emerald-900/80',
+            'badge_color' => 'bg-emerald-500/30 text-emerald-100 border-emerald-400/30',
+            'image' => asset('images/fasilitas.jpg'),
+            'cta' => 'Buka Data Fasilitas',
         ],
     ];
 @endphp
@@ -87,6 +144,11 @@
         init() {
             this.form = { ...this.blank };
             this.$watch('sidebar', v => document.body.classList.toggle('overflow-hidden', v));
+        },
+        go(target) {
+            this.page = target;
+            this.sidebar = false;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         },
         newFacility() {
             this.editing = null;
@@ -124,15 +186,18 @@
 
         <nav class="flex-1 p-3 space-y-1 text-sm overflow-y-auto">
             @foreach($menu as $key => [$label, $title])
-                <button @click="page = '{{ $key }}'; sidebar = false"
+                <button @click="go('{{ $key }}')"
                         :class="page === '{{ $key }}' ? 'bg-white/15 text-white font-bold' : 'text-blue-100 hover:bg-white/10'"
                         class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition text-left">
                     @switch($key)
                         @case('dashboard')
                             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
                         @break
-                        @case('petugas')
-                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        @case('tambah_akun')
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                        @break
+                        @case('data_akun')
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         @break
                         @case('verifikasi')
                             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -173,6 +238,16 @@
                 </div>
             @endif
 
+            @if($errors->any())
+                <div class="px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium">
+                    <ul class="list-disc list-inside space-y-0.5">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             {{-- ============ DASHBOARD ============ --}}
             <section x-show="page === 'dashboard'" x-cloak class="space-y-6">
 
@@ -182,10 +257,11 @@
                     <p class="text-sm text-slate-500 mt-1">Rekapitulasi keseluruhan aktivitas sistem</p>
                 </div>
 
-                {{-- STAT CARDS — GRADIENT --}}
+                {{-- STAT CARDS — GRADIENT (KLIK UNTUK BUKA HALAMAN) --}}
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     @foreach($statCards as $card)
-                        <div class="flex items-center gap-3 rounded-2xl p-4 shadow-md bg-gradient-to-br {{ $card['gradient'] }} text-white">
+                        <button type="button" @click="go('{{ $card['page'] }}')"
+                                class="group w-full text-left flex items-center gap-3 rounded-2xl p-4 shadow-md bg-gradient-to-br {{ $card['gradient'] }} text-white transition duration-200 hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-900">
                             <div class="w-11 h-11 rounded-xl bg-white/25 flex items-center justify-center shrink-0 backdrop-blur">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="{{ $card['icon'] }}"/>
@@ -196,7 +272,10 @@
                                 <p class="text-2xl font-black leading-none mt-0.5">{{ $card['value'] }}</p>
                                 <p class="text-[10px] font-medium {{ $card['text_color'] }} mt-0.5">{{ $card['subtitle'] }}</p>
                             </div>
-                        </div>
+                            <svg class="w-4 h-4 shrink-0 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </button>
                     @endforeach
                 </div>
 
@@ -252,63 +331,25 @@
                 </div>
 
                 {{-- MENU CARDS --}}
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    @php
-                        $menus = [
-                            [
-                                'title' => 'Akun Petugas',
-                                'badge' => 'Manajemen User',
-                                'desc' => 'Daftarkan akun petugas baru langsung tanpa verifikasi.',
-                                'link' => 'javascript:void(0)',
-                                'page' => 'petugas',
-                                'overlay' => 'from-blue-950/90 to-blue-900/80',
-                                'badge_color' => 'bg-blue-500/30 text-blue-200 border-blue-400/30',
-                                'image' => asset('images/reservasi.jpg'),
-                                'cta' => 'Buka Manajemen',
-                            ],
-                            [
-                                'title' => 'Verifikasi Pengguna',
-                                'badge' => 'Approval Akun',
-                                'desc' => 'Verifikasi atau tolak registrasi mandiri pengguna baru.',
-                                'link' => 'javascript:void(0)',
-                                'page' => 'verifikasi',
-                                'overlay' => 'from-amber-950/90 to-amber-900/80',
-                                'badge_color' => 'bg-amber-500/30 text-amber-200 border-amber-400/30',
-                                'image' => asset('images/laporan.jpg'),
-                                'cta' => 'Buka Verifikasi',
-                            ],
-                            [
-                                'title' => 'Data Fasilitas',
-                                'badge' => 'Master Data',
-                                'desc' => 'Kelola seluruh data fasilitas kampus: tambah, edit, nonaktifkan.',
-                                'link' => 'javascript:void(0)',
-                                'page' => 'fasilitas',
-                                'overlay' => 'from-emerald-950/90 to-emerald-900/80',
-                                'badge_color' => 'bg-emerald-500/30 text-emerald-100 border-emerald-400/30',
-                                'image' => asset('images/fasilitas.jpg'),
-                                'cta' => 'Buka Data Fasilitas',
-                            ],
-                        ];
-                    @endphp
-
-                    @foreach($menus as $menu)
-                        <button @click="page = '{{ $menu['page'] }}'"
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+                    @foreach($shortcuts as $item)
+                        <button type="button" @click="go('{{ $item['page'] }}')"
                                 class="group relative bg-white rounded-2xl p-6 shadow border border-slate-200 overflow-hidden hover:shadow-lg transition duration-300 flex flex-col justify-between min-h-[220px] text-left">
-                            <div class="absolute inset-0 bg-gradient-to-r {{ $menu['overlay'] }} z-10"></div>
-                            <img src="{{ $menu['image'] }}" alt="{{ $menu['title'] }}"
+                            <div class="absolute inset-0 bg-gradient-to-r {{ $item['overlay'] }} z-10"></div>
+                            <img src="{{ $item['image'] }}" alt="{{ $item['title'] }}"
                                  class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-500"
                                  onerror="this.style.display='none'">
 
                             <div class="relative z-20 text-white space-y-2">
-                                <span class="inline-block {{ $menu['badge_color'] }} text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border">
-                                    {{ $menu['badge'] }}
+                                <span class="inline-block {{ $item['badge_color'] }} text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border">
+                                    {{ $item['badge'] }}
                                 </span>
-                                <h2 class="text-xl font-black leading-snug">{{ $menu['title'] }}</h2>
-                                <p class="text-xs text-slate-200 max-w-sm">{{ $menu['desc'] }}</p>
+                                <h2 class="text-xl font-black leading-snug">{{ $item['title'] }}</h2>
+                                <p class="text-xs text-slate-200 max-w-sm">{{ $item['desc'] }}</p>
                             </div>
 
                             <div class="relative z-20 pt-4 flex items-center text-xs font-bold text-white/80 group-hover:text-white transition">
-                                <span>{{ $menu['cta'] }}</span>
+                                <span>{{ $item['cta'] }}</span>
                                 <svg class="w-4 h-4 ml-1 group-hover:translate-x-1 transition" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                                 </svg>
@@ -318,26 +359,47 @@
                 </div>
             </section>
 
-            {{-- ============ AKUN PETUGAS ============ --}}
-            <section x-show="page === 'petugas'" x-cloak class="space-y-6">
+            {{-- ============ TAMBAH AKUN (PETUGAS / PENGGUNA) ============ --}}
+            <section x-show="page === 'tambah_akun'" x-cloak class="space-y-6">
                 <div>
-                    <h1 class="text-2xl font-black text-slate-900">Akun Petugas</h1>
-                    <p class="text-sm text-slate-500 mt-1">Daftarkan akun petugas baru</p>
+                    <h1 class="text-2xl font-black text-slate-900">Tambah Akun</h1>
+                    <p class="text-sm text-slate-500 mt-1">Daftarkan akun petugas atau pengguna baru tanpa proses verifikasi</p>
                 </div>
 
-                <form action="{{ route('admin.petugas.store') }}" method="POST"
-                      x-data="{ submitting: false }" @submit="submitting = true"
+                <form method="POST"
+                      x-data="{ role: 'petugas', submitting: false }" @submit="submitting = true"
+                      :action="role === 'petugas' ? '{{ route('admin.petugas.store') }}' : '{{ route('admin.pengguna.store') }}'"
                       class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
                     @csrf
-                    <input type="hidden" name="page" value="petugas">
+                    {{-- setelah simpan, tampilkan halaman Data Akun --}}
+                    <input type="hidden" name="page" value="data_akun">
+
+                    {{-- Pilih jenis akun --}}
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">Jenis Akun <span class="text-rose-500">*</span></label>
+                        <div class="inline-flex p-1 rounded-lg bg-slate-100 gap-1">
+                            <button type="button" @click="role = 'petugas'"
+                                    :class="role === 'petugas' ? 'bg-blue-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white'"
+                                    class="px-5 py-2 rounded-md text-sm font-bold transition">
+                                Petugas
+                            </button>
+                            <button type="button" @click="role = 'pengguna'"
+                                    :class="role === 'pengguna' ? 'bg-blue-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white'"
+                                    class="px-5 py-2 rounded-md text-sm font-bold transition">
+                                Pengguna
+                            </button>
+                        </div>
+                    </div>
 
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">Nama Petugas <span class="text-rose-500">*</span></label>
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5" x-text="role === 'petugas' ? 'Nama Petugas *' : 'Nama Pengguna *'"></label>
                         <input name="name" required placeholder="Nama lengkap" class="{{ $input }}">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">NIP <span class="text-rose-500">*</span></label>
-                        <input name="nim_nip" required placeholder="Nomor induk petugas" class="{{ $input }}">
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5" x-text="role === 'petugas' ? 'NIP *' : 'NIM / NIP *'"></label>
+                        <input name="nim_nip" required
+                               :placeholder="role === 'petugas' ? 'Nomor induk petugas' : 'NIM atau NIP pengguna'"
+                               class="{{ $input }}">
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-1.5">Email <span class="text-rose-500">*</span></label>
@@ -347,9 +409,11 @@
                         <label class="block text-sm font-bold text-slate-700 mb-1.5">No. HP</label>
                         <input name="no_hp" placeholder="08xxxxxxxxxx" class="{{ $input }}">
                     </div>
-                    <div>
+
+                    {{-- Unit hanya untuk petugas --}}
+                    <div x-show="role === 'petugas'">
                         <label class="block text-sm font-bold text-slate-700 mb-1.5">Unit / Divisi</label>
-                        <select name="unit" class="{{ $input }}">
+                        <select name="unit" :disabled="role !== 'petugas'" class="{{ $input }}">
                             @foreach(['Sarpras','IT','Kebersihan','Keamanan'] as $u)
                                 <option>{{ $u }}</option>
                             @endforeach
@@ -359,6 +423,7 @@
                         <label class="block text-sm font-bold text-slate-700 mb-1.5">Password Awal <span class="text-rose-500">*</span></label>
                         <input type="password" name="password" required minlength="8" placeholder="Min. 8 karakter" class="{{ $input }}">
                     </div>
+
                     <div class="md:col-span-2 flex justify-end">
                         <button type="submit" :disabled="submitting"
                                 class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white text-sm font-bold rounded-lg transition shadow-sm">
@@ -369,29 +434,79 @@
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                             </svg>
-                            <span x-text="submitting ? 'Menyimpan...' : 'Daftarkan Petugas'"></span>
+                            <span x-text="submitting ? 'Menyimpan...' : (role === 'petugas' ? 'Daftarkan Petugas' : 'Daftarkan Pengguna')"></span>
                         </button>
                     </div>
                 </form>
+            </section>
+
+            {{-- ============ DATA AKUN (PETUGAS & PENGGUNA) ============ --}}
+            <section x-show="page === 'data_akun'" x-cloak
+                     x-data="{ tab: 'semua', q: '' }"
+                     class="space-y-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-black text-slate-900">Data Akun</h1>
+                        <p class="text-sm text-slate-500 mt-1">Daftar akun petugas dan pengguna yang terdaftar</p>
+                    </div>
+                    <button type="button" @click="go('tambah_akun')"
+                            class="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 bg-blue-900 hover:bg-blue-800 text-white text-sm font-bold rounded-lg transition shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Tambah Akun
+                    </button>
+                </div>
+
+                {{-- Filter & pencarian --}}
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div class="inline-flex p-1 rounded-lg bg-slate-100 gap-1 self-start">
+                        <button type="button" @click="tab = 'semua'"
+                                :class="tab === 'semua' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'"
+                                class="px-4 py-1.5 rounded-md text-xs font-bold transition">
+                            Semua ({{ $totalPetugas + $totalPengguna }})
+                        </button>
+                        <button type="button" @click="tab = 'petugas'"
+                                :class="tab === 'petugas' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'"
+                                class="px-4 py-1.5 rounded-md text-xs font-bold transition">
+                            Petugas ({{ $totalPetugas }})
+                        </button>
+                        <button type="button" @click="tab = 'pengguna'"
+                                :class="tab === 'pengguna' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'"
+                                class="px-4 py-1.5 rounded-md text-xs font-bold transition">
+                            Pengguna ({{ $totalPengguna }})
+                        </button>
+                    </div>
+                    <input type="search" x-model="q" placeholder="Cari nama, email, atau NIM/NIP..."
+                           class="{{ $input }} sm:max-w-xs sm:ml-auto">
+                </div>
 
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    {{-- Desktop --}}
                     <div class="hidden md:block overflow-x-auto">
                         <table class="w-full text-sm text-left">
                             <thead class="bg-slate-50 border-b border-slate-200">
                                 <tr>
                                     <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide">Nama</th>
-                                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide">NIP</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide">NIM/NIP</th>
                                     <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide">Email</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide">Jenis</th>
                                     <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide">Unit</th>
                                     <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                @forelse($petugas as $p)
-                                    <tr class="hover:bg-slate-50">
+                                {{-- Petugas --}}
+                                @foreach($petugas as $p)
+                                    <tr class="hover:bg-slate-50"
+                                        data-s="{{ strtolower($p->name.' '.$p->email.' '.$p->nim_nip) }}"
+                                        x-show="(tab === 'semua' || tab === 'petugas') && $el.dataset.s.includes(q.toLowerCase())">
                                         <td class="px-6 py-4 font-bold text-slate-900">{{ $p->name }}</td>
                                         <td class="px-6 py-4 text-slate-600 font-mono text-xs">{{ $p->nim_nip }}</td>
                                         <td class="px-6 py-4 text-slate-600">{{ $p->email }}</td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-2.5 py-1 rounded text-[10px] font-bold bg-blue-50 text-blue-700">Petugas</span>
+                                        </td>
                                         <td class="px-6 py-4 text-slate-600">{{ $p->unit ?? '—' }}</td>
                                         <td class="px-6 py-4 text-right">
                                             <button type="button" @click="confirmDelete = {{ $p->id }}"
@@ -400,25 +515,56 @@
                                             </button>
                                         </td>
                                     </tr>
-                                @empty
+                                @endforeach
+
+                                {{-- Pengguna --}}
+                                @foreach($penggunaList as $u)
+                                    <tr class="hover:bg-slate-50"
+                                        data-s="{{ strtolower($u->name.' '.$u->email.' '.($u->nim_nip ?? '')) }}"
+                                        x-show="(tab === 'semua' || tab === 'pengguna') && $el.dataset.s.includes(q.toLowerCase())">
+                                        <td class="px-6 py-4 font-bold text-slate-900">{{ $u->name }}</td>
+                                        <td class="px-6 py-4 text-slate-600 font-mono text-xs">{{ $u->nim_nip ?? '—' }}</td>
+                                        <td class="px-6 py-4 text-slate-600">{{ $u->email }}</td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-2.5 py-1 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">Pengguna</span>
+                                        </td>
+                                        <td class="px-6 py-4 text-slate-400">—</td>
+                                        <td class="px-6 py-4 text-right">
+                                            @if($u->ktm_path)
+                                                <a href="{{ route('admin.users.ktm', $u->id) }}" target="_blank"
+                                                   class="text-blue-900 font-bold hover:underline text-xs">Lihat KTM</a>
+                                            @else
+                                                <span class="text-slate-400 text-xs">—</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+
+                                @if($totalPetugas + $totalPengguna === 0)
                                     <tr>
-                                        <td colspan="5" class="px-6 py-16 text-center">
+                                        <td colspan="6" class="px-6 py-16 text-center">
                                             <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                                             </svg>
-                                            <p class="text-sm font-bold text-slate-700">Belum ada akun petugas</p>
-                                            <p class="text-xs text-slate-400 mt-1">Daftarkan petugas pertama dengan form di atas</p>
+                                            <p class="text-sm font-bold text-slate-700">Belum ada akun</p>
+                                            <p class="text-xs text-slate-400 mt-1">Tambahkan akun lewat menu Tambah Akun</p>
                                         </td>
                                     </tr>
-                                @endforelse
+                                @endif
                             </tbody>
                         </table>
                     </div>
 
+                    {{-- Mobile --}}
                     <div class="md:hidden divide-y divide-slate-100">
-                        @forelse($petugas as $p)
-                            <div class="p-4 space-y-2">
-                                <p class="font-bold text-slate-900 text-sm">{{ $p->name }}</p>
+                        @foreach($petugas as $p)
+                            <div class="p-4 space-y-2"
+                                 data-s="{{ strtolower($p->name.' '.$p->email.' '.$p->nim_nip) }}"
+                                 x-show="(tab === 'semua' || tab === 'petugas') && $el.dataset.s.includes(q.toLowerCase())">
+                                <div class="flex items-center justify-between gap-2">
+                                    <p class="font-bold text-slate-900 text-sm">{{ $p->name }}</p>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700">Petugas</span>
+                                </div>
                                 <p class="text-xs text-slate-500 font-mono">{{ $p->nim_nip }}</p>
                                 <p class="text-xs text-slate-500 break-all">{{ $p->email }}</p>
                                 <p class="text-xs text-slate-500">Unit: {{ $p->unit ?? '—' }}</p>
@@ -427,15 +573,34 @@
                                     Hapus
                                 </button>
                             </div>
-                        @empty
-                            <div class="p-8 text-center">
-                                <p class="text-sm font-bold text-slate-700">Belum ada akun petugas</p>
+                        @endforeach
+
+                        @foreach($penggunaList as $u)
+                            <div class="p-4 space-y-2"
+                                 data-s="{{ strtolower($u->name.' '.$u->email.' '.($u->nim_nip ?? '')) }}"
+                                 x-show="(tab === 'semua' || tab === 'pengguna') && $el.dataset.s.includes(q.toLowerCase())">
+                                <div class="flex items-center justify-between gap-2">
+                                    <p class="font-bold text-slate-900 text-sm">{{ $u->name }}</p>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">Pengguna</span>
+                                </div>
+                                <p class="text-xs text-slate-500 font-mono">{{ $u->nim_nip ?? '—' }}</p>
+                                <p class="text-xs text-slate-500 break-all">{{ $u->email }}</p>
+                                @if($u->ktm_path)
+                                    <a href="{{ route('admin.users.ktm', $u->id) }}" target="_blank"
+                                       class="inline-block text-blue-900 font-bold hover:underline text-xs">Lihat KTM</a>
+                                @endif
                             </div>
-                        @endforelse
+                        @endforeach
+
+                        @if($totalPetugas + $totalPengguna === 0)
+                            <div class="p-8 text-center">
+                                <p class="text-sm font-bold text-slate-700">Belum ada akun</p>
+                            </div>
+                        @endif
                     </div>
                 </div>
 
-                {{-- Modal Konfirmasi Hapus --}}
+                {{-- Modal Konfirmasi Hapus Petugas --}}
                 @foreach($petugas as $p)
                     <div x-show="confirmDelete === {{ $p->id }}" x-cloak
                          x-effect="document.body.classList.toggle('overflow-hidden', confirmDelete !== null)"
@@ -459,6 +624,7 @@
                                 </button>
                                 <form action="{{ route('admin.petugas.destroy', $p->id) }}" method="POST">
                                     @csrf @method('DELETE')
+                                    <input type="hidden" name="page" value="data_akun">
                                     <button class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold rounded-lg transition">
                                         Ya, Hapus
                                     </button>
