@@ -14,6 +14,7 @@
         tanggal: '{{ $tanggal }}',
         today: '{{ now()->toDateString() }}',
         besok: '{{ now()->addDay()->toDateString() }}',
+        currentTime: '{{ now()->format('H:i') }}',
         start: '{{ $startTime ?? '08:00' }}',
         end: '{{ $endTime ?? '08:30' }}',
         availUrl: '{{ route('fasilitas.ketersediaan', ['id' => '__ID__']) }}',
@@ -143,7 +144,7 @@
                                class="w-full h-11 px-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-900 focus:outline-none">
                     </div>
 
-                    {{-- 3. JAM --}}
+                    {{-- 3. PILIH JAM PEMAKAIAN (SLOT GRID) --}}
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">
                             <label class="block text-sm font-bold text-slate-700">
@@ -154,72 +155,48 @@
                             </span>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 mb-1">Jam Mulai</label>
-                                <select x-model="start" @change="selectingStart = true"
-                                        class="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-900">
-                                    @foreach($jamMulaiOptions as $jam)
-                                        <option value="{{ $jam }}">{{ $jam }} WIB</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 mb-1">Jam Selesai</label>
-                                <select x-model="end"
-                                        class="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-900">
-                                    @foreach($jamSelesaiOptions as $jam)
-                                        <option value="{{ $jam }}">{{ $jam }} WIB</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-
-                        {{-- Grid Slot --}}
-                        <div class="border border-slate-200 rounded-xl p-3 space-y-2">
+                        {{-- Grid Slot Rentang Waktu (Ukuran 4 kolom agar pas dan luas) --}}
+                        <div class="border border-slate-200 rounded-2xl p-4 space-y-3 bg-slate-50/50">
                             <div class="flex items-center justify-between text-xs">
                                 <span class="font-bold text-slate-700">Klik slot untuk memilih rentang jam</span>
-                                <span class="text-slate-400" x-text="tanggal"></span>
+                                <span class="text-slate-400 font-medium" x-text="tanggal"></span>
                             </div>
 
-                            <p x-show="loading" class="text-center text-slate-400 py-3 text-xs font-semibold">Memuat ketersediaan...</p>
-                            <p x-show="!loading && slots.length === 0" class="text-center text-slate-400 py-3 text-xs font-semibold">Pilih fasilitas untuk menampilkan slot.</p>
+                            <p x-show="loading" class="text-center text-slate-400 py-6 text-xs font-semibold">Memuat ketersediaan slot...</p>
+                            <p x-show="!loading && slots.length === 0" class="text-center text-slate-400 py-6 text-xs font-semibold">Pilih fasilitas terlebih dahulu untuk menampilkan slot.</p>
 
+                            {{-- Grid 4 kolom agar tampilannya luas dan rapi --}}
                             <div x-show="!loading && slots.length > 0"
-                                 class="grid grid-cols-3 sm:grid-cols-5 gap-1.5 max-h-44 overflow-y-auto pr-1">
+                                 class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-h-72 overflow-y-auto pr-1">
                                 <template x-for="(s, idx) in slots" :key="idx">
                                     <button type="button" @click="pilihSlot(s)" :disabled="!s.available"
                                             :class="!s.available
-                                                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                                                ? 'bg-slate-100/80 border-slate-200 text-slate-400 cursor-not-allowed'
                                                 : (isSelected(s)
-                                                    ? 'bg-blue-900 border-blue-900 text-white shadow-sm'
-                                                    : 'bg-white border-slate-200 text-slate-700 hover:border-blue-900')"
-                                            class="p-1.5 rounded-lg border text-center transition">
-                                        <span class="block font-bold text-[11px]" x-text="s.start"></span>
-                                        <span class="block text-[9px] font-semibold opacity-80"
+                                                    ? 'bg-blue-900 border-blue-900 text-white shadow-md'
+                                                    : 'bg-white border-slate-200 text-slate-800 hover:border-blue-900 shadow-2xs')"
+                                            class="p-3 rounded-xl border text-center transition flex flex-col justify-center items-center min-h-[52px]">
+                                        <span class="block font-black text-xs" x-text="s.start + ' – ' + s.end"></span>
+                                        <span class="block text-[10px] font-semibold mt-0.5 opacity-90"
                                               x-text="!s.available ? 'Terisi' : (isSelected(s) ? 'Dipilih' : 'Tersedia')"></span>
                                     </button>
                                 </template>
                             </div>
 
-                            <div class="flex items-center justify-between text-[10px] font-bold pt-2 border-t border-slate-100">
-                                <span class="text-emerald-600"><span x-text="slotTersedia"></span> Slot Tersedia</span>
-                                <span class="text-rose-500"><span x-text="slotTerisi"></span> Slot Terisi</span>
+                            <div class="flex items-center justify-between text-[11px] font-bold pt-2 border-t border-slate-200/60 text-slate-600">
+                                <span class="text-emerald-600 flex items-center gap-1">● <span x-text="slotTersedia"></span> Slot Tersedia</span>
+                                <span class="text-slate-400 flex items-center gap-1">● <span x-text="slotTerisi"></span> Slot Terisi</span>
                             </div>
                         </div>
 
-                        {{-- Status --}}
+                        {{-- Status Pilihan --}}
                         <div x-show="rangeValid && rangeTersedia" x-cloak
-                             class="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold">
-                            ✓ Slot <span x-text="start"></span>–<span x-text="end"></span> WIB (<span x-text="durasiJam"></span> jam) siap diajukan.
-                        </div>
-                        <div x-show="!rangeValid" x-cloak
-                             class="p-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold">
-                            ⚠ Jam selesai harus lebih besar dari jam mulai.
+                             class="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold">
+                            ✓ Rentang waktu <span x-text="start"></span> – <span x-text="end"></span> WIB (<span x-text="durasiJam"></span> jam) siap diajukan.
                         </div>
                         <div x-show="rangeValid && !rangeTersedia && slots.length > 0" x-cloak
-                             class="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold">
-                            ✗ Ada slot terisi di rentang ini. Pilih rentang lain.
+                             class="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold">
+                            ✗ Ada slot terisi di dalam rentang waktu yang Anda pilih. Silakan pilih ulang.
                         </div>
                     </div>
 
@@ -270,8 +247,8 @@ document.addEventListener('alpine:init', () => {
         tanggal: cfg.tanggal,
         today: cfg.today,
         besok: cfg.besok,
-        start: cfg.start,
-        end: cfg.end,
+        start: cfg.start || '',
+        end: cfg.end || '',
         tujuan: '',
         slots: [],
         loading: false,
@@ -279,32 +256,50 @@ document.addEventListener('alpine:init', () => {
 
         init() {
             this.loadSlots();
-            this.$watch('tanggal', () => this.loadSlots());
+            this.$watch('tanggal', () => {
+                this.start = '';
+                this.end = '';
+                this.selectingStart = true;
+                this.loadSlots();
+            });
         },
 
         toMin(t) {
+            if (!t) return 0;
             const p = t.split(':');
             return parseInt(p[0]) * 60 + parseInt(p[1]);
-        },
-        toStr(m) {
-            if (m > 1200) m = 1200;
-            const h = Math.floor(m / 60);
-            const i = m % 60;
-            return String(h).padStart(2, '0') + ':' + String(i).padStart(2, '0');
         },
 
         loadSlots() {
             if (!this.facilityId) { this.slots = []; return; }
             this.loading = true;
             const url = cfg.availUrl.replace('__ID__', this.facilityId) + '?tanggal=' + this.tanggal;
+            
             fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
                 .then(r => r.json())
                 .then(data => {
-                    this.slots = (data.slots || []).map(s => ({
-                        start: s.start,
-                        end: s.end,
-                        available: s.is_available
-                    }));
+                    const isToday = (this.tanggal === this.today);
+                    const [currH, currM] = cfg.currentTime.split(':').map(Number);
+                    const currentTotalMin = (currH * 60) + currM;
+                    const minAllowedMin = currentTotalMin + 120; // Buffer minimal 2 jam
+
+                    this.slots = (data.slots || []).map(s => {
+                        let isAvailable = s.is_available;
+
+                        if (isToday && isAvailable) {
+                            const [jam, menit] = s.start.split(':').map(Number);
+                            const slotTotalMin = (jam * 60) + menit;
+                            if (slotTotalMin < minAllowedMin) {
+                                isAvailable = false;
+                            }
+                        }
+
+                        return {
+                            start: s.start,
+                            end: s.end,
+                            available: isAvailable
+                        };
+                    });
                 })
                 .catch(() => { this.slots = []; })
                 .finally(() => { this.loading = false; });
@@ -314,11 +309,14 @@ document.addEventListener('alpine:init', () => {
         get slotTerisi() { return this.slots.filter(s => !s.available).length; },
 
         get durasiJam() {
+            if (!this.start || !this.end) return 0;
             const d = (this.toMin(this.end) - this.toMin(this.start)) / 60;
             return d > 0 ? d : 0;
         },
 
-        get rangeValid() { return this.toMin(this.end) > this.toMin(this.start); },
+        get rangeValid() {
+            return this.start && this.end && this.toMin(this.end) > this.toMin(this.start);
+        },
 
         get rangeTersedia() {
             if (!this.rangeValid || this.slots.length === 0) return false;
@@ -337,27 +335,27 @@ document.addEventListener('alpine:init', () => {
         },
 
         isSelected(s) {
+            if (!this.start || !this.end) return false;
             return this.toMin(s.start) >= this.toMin(this.start)
                 && this.toMin(s.end) <= this.toMin(this.end);
         },
 
         pilihSlot(s) {
             if (!s.available) return;
-            const slotStartMin = this.toMin(s.start);
-            const currentStartMin = this.toMin(this.start);
+            const slotMin = this.toMin(s.start);
+            const startMin = this.toMin(this.start);
 
-            if (this.selectingStart || slotStartMin < currentStartMin) {
+            if (this.selectingStart || !this.start || slotMin < startMin) {
                 this.start = s.start;
                 this.end = s.end;
                 this.selectingStart = false;
             } else {
-                const potentialEnd = s.end;
                 const valid = this.slots
-                    .filter(item => this.toMin(item.start) >= currentStartMin && this.toMin(item.end) <= this.toMin(potentialEnd))
+                    .filter(item => this.toMin(item.start) >= startMin && this.toMin(item.end) <= this.toMin(s.end))
                     .every(item => item.available);
 
                 if (valid) {
-                    this.end = potentialEnd;
+                    this.end = s.end;
                     this.selectingStart = true;
                 } else {
                     this.start = s.start;
