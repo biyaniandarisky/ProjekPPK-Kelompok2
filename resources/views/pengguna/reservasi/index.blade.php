@@ -17,9 +17,15 @@
         },
         detail: null,
         showDetail: false,
+        showCancelModal: false,
+        cancelActionUrl: '',
         buka(data) {
             this.detail = data;
             this.showDetail = true;
+        },
+        konfirmasiBatal(url) {
+            this.cancelActionUrl = url;
+            this.showCancelModal = true;
         }
      }">
 
@@ -45,6 +51,12 @@
             </svg>
             Ajukan Reservasi
         </a>
+    </div>
+
+    {{-- CATATAN INFO PEMBATALAN --}}
+    <div class="bg-amber-50 border border-amber-200 text-amber-900 text-[11px] px-3 py-2 rounded-xl flex items-center gap-2 shadow-2xs">
+        <span class="text-sm"></span>
+        <p><strong>Catatan:</strong> Pembatalan reservasi secara mandiri hanya dapat dilakukan maksimal <strong>2 jam</strong> sebelum waktu pemakaian fasilitas dimulai.</p>
     </div>
 
     {{-- FILTER --}}
@@ -149,7 +161,7 @@
                 $startDateTime = \Carbon\Carbon::parse($tglStr . ' ' . $r->start_time);
                 $bisaDibatalkan = in_array($r->status, ['pending', 'approved'])
                     && now()->diffInMinutes($startDateTime, false) >= 120;
-            @endphp
+                @endphp
 
                 <div x-show="(filter === 'all' || filter === '{{ $r->status }}') && matchSearch(@js($haystack))"
                      class="row-item lg:grid lg:grid-cols-12 lg:gap-3 lg:items-center px-5 py-3.5 hover:bg-slate-50 transition">
@@ -173,11 +185,11 @@
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg> Detail
                             </button>
                             @if($bisaDibatalkan)
-                                <form action="{{ route('pengguna.reservasi.cancel', $r->id) }}" method="POST" class="flex-1"
-                                      onsubmit="return confirm('Yakin ingin membatalkan reservasi ini?')">
-                                    @csrf
-                                    <button type="submit" class="w-full px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold rounded-lg transition">Batalkan</button>
-                                </form>
+                                <button type="button"
+                                        @click="konfirmasiBatal('{{ route('pengguna.reservasi.cancel', $r->id) }}')"
+                                        class="flex-1 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold rounded-lg transition text-center">
+                                    Batalkan
+                                </button>
                             @elseif(in_array($r->status, ['pending', 'approved']))
                                 <span class="flex-1 text-center text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200 cursor-not-allowed"
                                       title="Pembatalan maksimal 2 jam sebelum pemakaian">Batas Lewat</span>
@@ -201,11 +213,11 @@
                         </div>
                         <div class="col-span-3 flex items-center justify-end gap-1.5">
                             @if($bisaDibatalkan)
-                                <form action="{{ route('pengguna.reservasi.cancel', $r->id) }}" method="POST"
-                                      onsubmit="return confirm('Yakin ingin membatalkan reservasi ini?')">
-                                    @csrf
-                                    <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold rounded-lg transition">Batalkan</button>
-                                </form>
+                                <button type="button"
+                                        @click="konfirmasiBatal('{{ route('pengguna.reservasi.cancel', $r->id) }}')"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold rounded-lg transition">
+                                    Batalkan
+                                </button>
                             @elseif(in_array($r->status, ['pending', 'approved']))
                                 <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200 cursor-not-allowed"
                                       title="Pembatalan maksimal 2 jam sebelum pemakaian">Batas Lewat</span>
@@ -344,6 +356,47 @@
                         class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition">
                     Tutup
                 </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL KONFIRMASI PEMBATALAN --}}
+    <div x-show="showCancelModal" x-cloak
+         x-effect="document.body.classList.toggle('overflow-hidden', showCancelModal)"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+         @keydown.escape.window="showCancelModal = false">
+        <div @click.outside="showCancelModal = false"
+             class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-black text-slate-900 text-base">Konfirmasi Pembatalan</h3>
+                    <p class="text-xs text-slate-500">Apakah Anda yakin ingin membatalkan reservasi ini?</p>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 text-amber-900 text-xs p-3 rounded-xl">
+                Tindakan ini tidak dapat dibatalkan dan slot waktu akan dikembalikan ke sistem.
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button" @click="showCancelModal = false"
+                        class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+                    Tidak, Kembali
+                </button>
+                
+                <form :action="cancelActionUrl" method="POST">
+                    @csrf
+                    <button type="submit"
+                            class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
+                        Ya, Batalkan Reservasi
+                    </button>
+                </form>
             </div>
         </div>
     </div>

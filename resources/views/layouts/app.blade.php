@@ -61,30 +61,30 @@
                     {{-- ===== PENGGUNA ===== --}}
                     @if(auth()->user()->role === 'pengguna')
                         <a href="{{ route('landing') }}"
-                           class="hidden sm:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('landing') ? 'bg-blue-50 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
+                        class="hidden sm:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('landing') ? 'bg-blue-50 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
                             Cari Fasilitas
                         </a>
                         <a href="{{ route('pengguna.dashboard') }}"
-                           class="px-3 py-2 rounded-lg transition {{ request()->routeIs('pengguna.dashboard') ? 'bg-blue-50 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
+                        class="px-3 py-2 rounded-lg transition {{ request()->routeIs('pengguna.dashboard') ? 'bg-blue-50 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
                             Dashboard
                         </a>
                         <a href="{{ route('pengguna.reservasi.index') }}"
-                           class="hidden md:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('pengguna.reservasi.*') ? 'bg-blue-50 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
+                        class="hidden md:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('pengguna.reservasi.*') ? 'bg-blue-50 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
                             Reservasi Saya
                         </a>
                         <a href="{{ route('pengguna.laporan.index') }}"
-                           class="hidden md:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('pengguna.laporan.*') ? 'bg-blue-50 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
+                        class="hidden md:inline-block px-3 py-2 rounded-lg transition {{ request()->routeIs('pengguna.laporan.*') ? 'bg-blue-50 text-blue-900' : 'text-slate-600 hover:bg-slate-100' }}">
                             Laporan Saya
                         </a>
 
-                        {{-- Notif Bell --}}
+                        {{-- Notif Bell Pengguna (Warna abu-abu standar seperti menu lain) --}}
                         @php
                             $userNotifCount = \App\Models\Notification::where('user_id', auth()->id())
                                 ->where('is_read', false)->count();
                         @endphp
                         <a href="{{ route('pengguna.notifikasi.index') }}" aria-label="Notifikasi"
-                           class="relative p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition mx-0.5">
-                            <svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        class="relative p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition mx-0.5">
+                            <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                             </svg>
                             @if($userNotifCount > 0)
