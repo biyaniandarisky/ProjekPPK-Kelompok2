@@ -3,10 +3,20 @@
 @section('title', 'Laporan Saya')
 
 @section('content')
-<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4"
+<style>
+    .row-no { counter-reset: rowno; }
+    .row-no > .row-item { counter-increment: rowno; }
+    .row-no .no-cell::before { content: counter(rowno); }
+</style>
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4"
      x-data="{
+        filterStatus: 'semua',
+        searchQuery: '',
         detail: null,
         showDetail: false,
+        matchSearch(haystack) {
+            return haystack.toLowerCase().includes(this.searchQuery.toLowerCase());
+        },
         buka(data) {
             this.detail = data;
             this.showDetail = true;
@@ -37,25 +47,48 @@
         </a>
     </div>
 
-    {{-- TABLE --}}
-    @if($myReports->isEmpty())
-        <div class="bg-white rounded-2xl border border-slate-200 py-16 text-center">
-            <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-            </div>
-            <p class="text-sm font-bold text-slate-700">Belum ada laporan</p>
-            <p class="text-xs text-slate-400 mt-1">Laporkan kerusakan fasilitas yang Anda temukan</p>
-            <a href="{{ route('pengguna.laporan.create') }}"
-               class="inline-block mt-4 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition">
-                Buat Laporan →
-            </a>
-        </div>
-    @else
-        <div class="space-y-3">
+    {{-- FILTER & SEARCH --}}
+    @php
+        $laporanFilters = ['semua' => 'Semua', 'baru' => 'Baru', 'diproses' => 'Diproses', 'selesai' => 'Selesai', 'ditolak' => 'Ditolak'];
+        $laporanCounts = ['semua' => $myReports->count()];
+        foreach (['baru', 'diproses', 'selesai', 'ditolak'] as $k) {
+            $laporanCounts[$k] = $myReports->where('status_laporan', $k)->count();
+        }
+    @endphp
 
-            {{-- Card List (bukan table) — konsisten dengan reservasi --}}
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            @foreach($laporanFilters as $key => $label)
+                <button type="button" @click="filterStatus = '{{ $key }}'"
+                        :class="filterStatus === '{{ $key }}' ? 'bg-blue-900 text-white border-blue-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
+                        class="py-2.5 px-2 rounded-xl border text-xs font-bold transition text-center truncate">
+                    {{ $label }} ({{ $laporanCounts[$key] }})
+                </button>
+            @endforeach
+        </div>
+
+        <div class="relative pt-3 border-t border-slate-100">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-[calc(50%+6px)] -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input type="text" x-model="searchQuery" placeholder="Cari fasilitas, atau kategori laporan..."
+                   class="w-full h-10 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-900 transition">
+        </div>
+    </div>
+
+    {{-- DAFTAR LAPORAN (TABEL) --}}
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+
+        <div class="hidden lg:grid grid-cols-12 gap-3 px-5 py-3 bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            <div class="col-span-1">No</div>
+            <div class="col-span-3">Fasilitas</div>
+            <div class="col-span-2">Kategori</div>
+            <div class="col-span-2">Tanggal</div>
+            <div class="col-span-2">Status</div>
+            <div class="col-span-2 text-right">Detail</div>
+        </div>
+
+        <div class="divide-y divide-slate-100 row-no">
             @foreach($myReports as $l)
                 @php
                     $badge = match($l->status_laporan ?? 'baru') {
@@ -64,6 +97,8 @@
                         'ditolak'  => ['Ditolak', 'bg-rose-50 text-rose-700 border-rose-200'],
                         default    => ['Baru', 'bg-amber-50 text-amber-700 border-amber-200'],
                     };
+                    $statusKey = $l->status_laporan ?? 'baru';
+                    $haystack = collect([$l->facility->nama_fasilitas ?? '', $l->kategori_laporan, $l->deskripsi])->implode(' ');
 
                     $detailArray = [
                         'id'         => $l->id,
@@ -73,70 +108,90 @@
                         'deskripsi'  => $l->deskripsi,
                         'foto'       => $l->foto_url ?? null,
                         'status'     => $badge[0],
-                        'statusCode' => $l->status_laporan ?? 'baru',
+                        'statusCode' => $statusKey,
                         'catatan'    => $l->catatan_resolusi,
                         'diajukan'   => $l->created_at ? \Carbon\Carbon::parse($l->created_at)->translatedFormat('d M Y H:i') . ' WIB' : '-',
                         'petugas'    => $l->petugas->name ?? null,
                     ];
                 @endphp
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 hover:border-slate-300 hover:shadow-md transition cursor-pointer"
-                     @click="buka({{ \Illuminate\Support\Js::from($detailArray) }})">
-                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
 
-                        {{-- Info --}}
-                        <div class="space-y-1.5 text-sm min-w-0 flex-1">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h2 class="font-black text-slate-900 truncate">{{ $l->facility->nama_fasilitas ?? '-' }}</h2>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider {{ $badge[1] }}">
-                                    {{ $badge[0] }}
-                                </span>
+                <div x-show="(filterStatus === 'semua' || filterStatus === '{{ $statusKey }}') && matchSearch(@js($haystack))"
+                     class="row-item lg:grid lg:grid-cols-12 lg:gap-3 lg:items-center px-5 py-3.5 hover:bg-slate-50 transition">
+
+                    {{-- Mobile --}}
+                    <div class="lg:hidden space-y-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <p class="font-bold text-slate-900 text-sm truncate">{{ $l->facility->nama_fasilitas ?? '-' }}</p>
+                                    <span class="text-[10px] text-slate-400 font-mono">No. <span class="no-cell"></span></span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">{{ $l->kategori_laporan ?? '-' }} · {{ $l->created_at->translatedFormat('d M Y') }}</p>
+                                <p class="text-xs text-slate-400 italic mt-0.5">{{ \Illuminate\Support\Str::limit($l->deskripsi, 60) }}</p>
                             </div>
-
-                            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-                                <span class="font-semibold text-slate-800 flex items-center gap-1">
-                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z"/>
-                                    </svg>
-                                    {{ $l->kategori_laporan ?? '-' }}
-                                </span>
-                                <span class="flex items-center gap-1">
-                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    </svg>
-                                    {{ $l->facility->lokasi ?? '-' }}
-                                </span>
-                                <span class="flex items-center gap-1">
-                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                    </svg>
-                                    {{ $l->created_at->translatedFormat('d M Y') }}
-                                </span>
-                            </div>
-
-                            <p class="text-xs text-slate-500 italic">
-                                {{ \Illuminate\Support\Str::limit($l->deskripsi, 70) }}
-                            </p>
+                            <span class="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider {{ $badge[1] }}">{{ $badge[0] }}</span>
                         </div>
+                        <div class="pt-3 border-t border-slate-100">
+                            <button type="button" @click="buka({{ \Illuminate\Support\Js::from($detailArray) }})"
+                                    class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg> Detail
+                            </button>
+                        </div>
+                    </div>
 
-                        {{-- Tombol Aksi --}}
-                        <div class="flex items-center gap-2 shrink-0 self-end md:self-center" @click.stop>
-                            <button type="button"
-                                    @click="buka({{ \Illuminate\Support\Js::from($detailArray) }})"
-                                    class="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                </svg>
-                                Detail
+                    {{-- Desktop --}}
+                    <div class="hidden lg:contents">
+                        <div class="col-span-1"><span class="text-xs font-mono text-slate-500 no-cell"></span></div>
+                        <div class="col-span-3 min-w-0">
+                            <p class="font-bold text-slate-900 text-sm truncate">{{ $l->facility->nama_fasilitas ?? '-' }}</p>
+                            <p class="text-[10px] text-slate-400 truncate">{{ $l->facility->lokasi ?? '-' }}</p>
+                        </div>
+                        <div class="col-span-2 min-w-0">
+                            <p class="text-xs font-semibold text-slate-700 truncate">{{ $l->kategori_laporan ?? '-' }}</p>
+                            <p class="text-[10px] text-slate-400 truncate italic">{{ \Illuminate\Support\Str::limit($l->deskripsi, 28) }}</p>
+                        </div>
+                        <div class="col-span-2">
+                            <p class="text-xs font-semibold text-slate-700">{{ $l->created_at->translatedFormat('d M Y') }}</p>
+                            <p class="text-[10px] text-slate-400">{{ $l->created_at->format('H:i') }} WIB</p>
+                        </div>
+                        <div class="col-span-2">
+                            <span class="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider {{ $badge[1] }}">{{ $badge[0] }}</span>
+                        </div>
+                        <div class="col-span-2 flex items-center justify-end">
+                            <button type="button" @click="buka({{ \Illuminate\Support\Js::from($detailArray) }})"
+                                    class="inline-flex items-center justify-center w-8 h-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition" title="Lihat Detail">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                             </button>
                         </div>
                     </div>
                 </div>
             @endforeach
 
+            {{-- Kosong --}}
+            @if($myReports->isEmpty())
+                <div class="px-5 py-16 text-center">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <p class="text-sm font-bold text-slate-700">Belum ada laporan</p>
+                    <p class="text-xs text-slate-400 mt-1">Laporkan kerusakan fasilitas yang Anda temukan</p>
+                    <a href="{{ route('pengguna.laporan.create') }}"
+                       class="inline-block mt-4 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition">Buat Laporan →</a>
+                </div>
+            @else
+                @foreach($laporanFilters as $key => $label)
+                    @if($key !== 'semua' && $laporanCounts[$key] === 0)
+                        <div x-show="filterStatus === '{{ $key }}'" x-cloak class="px-5 py-12 text-center">
+                            <p class="text-sm font-bold text-slate-700">Tidak ada laporan {{ strtolower($label) }}</p>
+                            <p class="text-xs text-slate-400 mt-1">Coba ubah filter atau buat laporan baru</p>
+                        </div>
+                    @endif
+                @endforeach
+            @endif
         </div>
-    @endif
+    </div>
 
     {{-- MODAL DETAIL LAPORAN --}}
     <div x-show="showDetail" x-cloak

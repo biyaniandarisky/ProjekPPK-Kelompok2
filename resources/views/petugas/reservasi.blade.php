@@ -3,6 +3,11 @@
 @section('title', 'Antrian Reservasi')
 
 @section('content')
+<style>
+    .row-no { counter-reset: rowno; }
+    .row-no > .row-item { counter-increment: rowno; }
+    .row-no .no-cell::before { content: counter(rowno); }
+</style>
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4"
      x-data="{
         filterStatus: 'semua',
@@ -53,7 +58,7 @@
             <svg class="w-4 h-4 text-slate-400 absolute left-3 top-[calc(50%+6px)] -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"/>
             </svg>
-            <input type="text" x-model="searchQuery" placeholder="Cari nama pemohon, ruangan, atau ID reservasi..."
+            <input type="text" x-model="searchQuery" placeholder="Cari nama pemohon, ruangan, atau lokasi..."
                    class="w-full h-10 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-900 transition">
         </div>
     </div>
@@ -63,7 +68,7 @@
 
         {{-- Header Desktop --}}
         <div class="hidden lg:grid grid-cols-12 gap-3 px-5 py-3 bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            <div class="col-span-1">ID</div>
+            <div class="col-span-1">No</div>
             <div class="col-span-3">Fasilitas</div>
             <div class="col-span-3">Pemohon</div>
             <div class="col-span-2">Jadwal</div>
@@ -72,7 +77,7 @@
         </div>
 
         {{-- Rows --}}
-        <div class="divide-y divide-slate-100">
+        <div class="divide-y divide-slate-100 row-no">
             @forelse($reservations as $r)
                 @php
                     $statusMap = [
@@ -82,7 +87,7 @@
                         'cancelled' => ['Dibatalkan', 'bg-slate-100 text-slate-600 border-slate-200'],
                     ];
                     $badge = $statusMap[$r->status] ?? ['—', 'bg-slate-100 text-slate-600 border-slate-200'];
-                    $haystack = collect([$r->id, $r->user->name ?? '', $r->facility->nama_fasilitas ?? '', $r->tujuan])->implode(' ');
+                    $haystack = collect([$r->user->name ?? '', $r->facility->nama_fasilitas ?? '', $r->tujuan])->implode(' ');
 
                     $detailArray = [
                         'id'         => $r->id,
@@ -103,7 +108,7 @@
                 @endphp
 
                 <div x-show="(filterStatus === 'semua' || filterStatus === '{{ $r->status }}') && matchSearch(@js($haystack))"
-                     class="lg:grid lg:grid-cols-12 lg:gap-3 lg:items-center px-5 py-3.5 hover:bg-slate-50 transition">
+                     class="row-item lg:grid lg:grid-cols-12 lg:gap-3 lg:items-center px-5 py-3.5 hover:bg-slate-50 transition">
 
                     {{-- Mobile: Card Layout --}}
                     <div class="lg:hidden space-y-3">
@@ -111,7 +116,7 @@
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <p class="font-bold text-slate-900 text-sm truncate">{{ $r->facility->nama_fasilitas ?? '-' }}</p>
-                                    <span class="text-[10px] text-slate-400 font-mono">#{{ $r->id }}</span>
+                                    <span class="text-[10px] text-slate-400 font-mono">No. <span class="no-cell"></span></span>
                                 </div>
                                 <p class="text-xs text-slate-500 mt-0.5">{{ $r->user->name ?? '-' }}</p>
                                 <p class="text-xs text-slate-500">
@@ -135,7 +140,7 @@
 
                             @if($r->status === 'pending')
                                 <form action="{{ route('petugas.reservasi.approve', $r->id) }}" method="POST"
-                                      onsubmit="return confirm('Setujui reservasi #{{ $r->id }}?')" class="flex-1">
+                                      onsubmit="return confirm('Setujui reservasi ini?')" class="flex-1">
                                     @csrf
                                     <button type="submit" class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -167,7 +172,7 @@
                     <div class="hidden lg:contents">
                         {{-- ID --}}
                         <div class="col-span-1">
-                            <span class="text-xs font-mono text-slate-500">#{{ $r->id }}</span>
+                            <span class="text-xs font-mono text-slate-500 no-cell"></span>
                         </div>
 
                         {{-- Fasilitas --}}
@@ -192,7 +197,7 @@
                         <div class="col-span-2 flex items-center justify-end gap-1.5">
                             @if($r->status === 'pending')
                                 <form action="{{ route('petugas.reservasi.approve', $r->id) }}" method="POST"
-                                      onsubmit="return confirm('Setujui reservasi #{{ $r->id }}?')">
+                                      onsubmit="return confirm('Setujui reservasi ini?')">
                                     @csrf
                                     <button type="submit"
                                             class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
@@ -259,7 +264,6 @@
             <div class="flex justify-between items-center px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
                 <h3 class="font-black text-slate-900 text-sm">
                     Detail Reservasi
-                    <span class="text-xs font-normal text-slate-400 ml-1" x-text="'#' + (detail?.id ?? '')"></span>
                 </h3>
                 <button type="button" @click="modalDetail = false"
                         class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition">
@@ -352,7 +356,7 @@
                      class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200">
                     <div class="px-6 py-4 border-b border-slate-100">
                         <h3 class="font-black text-slate-900">Tolak Reservasi</h3>
-                        <p class="text-xs text-slate-500 mt-0.5">#{{ $r->id }} · {{ $r->facility->nama_fasilitas ?? '-' }}</p>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ $r->facility->nama_fasilitas ?? '-' }}</p>
                     </div>
                     <form action="{{ route('petugas.reservasi.reject', $r->id) }}" method="POST" class="p-6 space-y-4"
                           x-data="{ submitting: false }" @submit="submitting = true">
@@ -396,7 +400,7 @@
                      class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200">
                     <div class="px-6 py-4 border-b border-slate-100">
                         <h3 class="font-black text-slate-900">Batalkan Reservasi (Darurat)</h3>
-                        <p class="text-xs text-slate-500 mt-0.5">#{{ $r->id }} · {{ $r->facility->nama_fasilitas ?? '-' }}</p>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ $r->facility->nama_fasilitas ?? '-' }}</p>
                     </div>
                     <div class="px-6 pt-4">
                         <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">
