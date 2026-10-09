@@ -43,8 +43,8 @@
 
     {{-- FILTER & SEARCH --}}
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
-        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
-            @foreach(['semua' => 'Semua', 'baru' => 'Baru', 'diproses' => 'Diproses', 'selesai' => 'Selesai', 'ditolak' => 'Ditolak'] as $key => $label)
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            @foreach(['semua' => 'Semua', 'baru' => 'Baru', 'diproses' => 'Diproses', 'selesai' => 'Selesai'] as $key => $label)
                 <button @click="filterStatus = '{{ $key }}'"
                         :class="filterStatus === '{{ $key }}' ? 'bg-blue-900 text-white border-blue-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
                         class="py-2.5 px-2 rounded-xl border text-xs font-bold transition text-center truncate">
