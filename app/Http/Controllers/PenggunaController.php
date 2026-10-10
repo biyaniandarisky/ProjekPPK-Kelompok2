@@ -7,6 +7,7 @@ use App\Http\Requests\StoreReservationRequest;
 use App\Http\Requests\StoreReportRequest;
 use App\Services\ReservationService;
 use App\Services\ReportService;
+use App\Services\SlotService;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\Report;
@@ -174,44 +175,14 @@ class PenggunaController extends Controller
         ));
     }
 
-    public function getKetersediaanFasilitas(Request $request, $facilityId)
+    /**
+     * AJAX: ketersediaan slot per fasilitas.
+     * Menggunakan SlotService agar konsisten dengan landing page.
+     */
+    public function getKetersediaanFasilitas(Request $request, $facilityId, SlotService $slotService)
     {
         $tanggal = $request->query('tanggal', now()->toDateString());
-
-        $booked = Reservation::where('facility_id', $facilityId)
-            ->where('tanggal', $tanggal)
-            ->whereIn('status', ['pending', 'approved'])
-            ->get(['start_time', 'end_time']);
-
-        $slots = [];
-        $start = Carbon::createFromTimeString('07:00');
-        $end   = Carbon::createFromTimeString('20:00');
-        $now   = now();
-
-        while ($start < $end) {
-            $slotStartStr = $start->format('H:i');
-            $slotEnd = (clone $start)->addMinutes(30);
-            $slotEndStr = $slotEnd->format('H:i');
-
-            $isBooked = $booked->contains(function ($res) use ($slotStartStr, $slotEndStr) {
-                $resStart = substr($res->start_time, 0, 5);
-                $resEnd   = substr($res->end_time, 0, 5);
-                return $slotStartStr < $resEnd && $slotEndStr > $resStart;
-            });
-
-            $slotStartAt = Carbon::createFromFormat('Y-m-d H:i', "{$tanggal} {$slotStartStr}");
-            $isPast = $slotStartAt->lte($now);
-
-            $slots[] = [
-                'start'        => $slotStartStr,
-                'end'          => $slotEndStr,
-                'is_available' => !$isBooked && !$isPast,
-                'is_booked'    => $isBooked,
-                'is_past'      => $isPast,
-            ];
-
-            $start->addMinutes(30);
-        }
+        $slots   = $slotService->getSlots((int) $facilityId, $tanggal);
 
         return response()->json(['slots' => $slots]);
     }

@@ -174,6 +174,7 @@ const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
 const TODAY = '{{ now()->toDateString() }}';
 const IS_GUEST = {{ auth()->guest() ? 'true' : 'false' }};
 const CAN_BOOK = {{ (auth()->guest() || (auth()->check() && auth()->user()->role === 'pengguna')) ? 'true' : 'false' }};
+const LOGIN_URL = '{{ route('login') }}';
 
 let currentFacility = null;
 let currentTanggal = TODAY;
@@ -228,16 +229,28 @@ function renderModal() {
     }
 
     const availableCount = currentSlots.filter(s => s.is_available).length;
-    const bookedCount = currentSlots.filter(s => s.is_booked).length;
-    const availablePct = currentSlots.length ? Math.round(availableCount / currentSlots.length * 100) : 0;
+    const bookedCount    = currentSlots.filter(s => s.is_booked).length;
+    const pastCount      = currentSlots.filter(s => s.is_past).length;
+    const soonCount      = currentSlots.filter(s => s.is_too_soon).length;
+    const availablePct   = currentSlots.length ? Math.round(availableCount / currentSlots.length * 100) : 0;
 
     let slotsHtml = '';
     currentSlots.forEach((s, i) => {
         const selected = fromIdx !== null && i >= fromIdx && i <= toIdx;
         const cls = !s.is_available
             ? 'bg-slate-100 border-slate-100 text-slate-400 cursor-not-allowed'
-            : (selected ? 'bg-blue-900 border-blue-900 text-white shadow-sm' : 'bg-white border-slate-200 hover:border-blue-900 text-slate-900');
-        const statusText = selected ? 'Dipilih' : (s.is_booked ? 'Terisi' : (s.is_past ? 'Lewat' : 'Tersedia'));
+            : (selected
+                ? 'bg-blue-900 border-blue-900 text-white shadow-sm'
+                : 'bg-white border-slate-200 hover:border-blue-900 text-slate-900');
+
+        // Label prioritas: Dipilih > label dari server (Terisi/Lewat/Terlalu Dekat/Tersedia)
+        let statusText;
+        if (selected) {
+            statusText = 'Dipilih';
+        } else {
+            statusText = s.label || 'Tersedia';
+        }
+
         slotsHtml += `
             <button type="button" onclick="toggleSlot(${i})" ${!s.is_available ? 'disabled' : ''}
                     class="text-left rounded-lg border-2 px-2.5 py-1.5 transition ${cls}">
@@ -248,9 +261,15 @@ function renderModal() {
 
     const hasSelection = fromIdx !== null;
     const startTime = hasSelection ? currentSlots[fromIdx].start : '';
-    const endTime = hasSelection ? currentSlots[toIdx].end : '';
-    const count = hasSelection ? (toIdx - fromIdx + 1) : 0;
-    const durasi = count * 30;
+    const endTime   = hasSelection ? currentSlots[toIdx].end   : '';
+    const count     = hasSelection ? (toIdx - fromIdx + 1) : 0;
+    const durasi    = count * 30;
+
+    const guestInfo = !CAN_BOOK ? `
+        <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+            <strong>Info:</strong> Anda perlu login untuk memesan fasilitas.
+            <a href="${LOGIN_URL}" class="font-bold underline">Login di sini</a>
+        </div>` : '';
 
     body.innerHTML = `
         <div class="space-y-4">
@@ -269,10 +288,12 @@ function renderModal() {
                            onchange="currentTanggal = this.value; loadSlots()"
                            class="h-8 px-2 border border-slate-300 rounded-lg text-xs">
                 </div>
-                <div class="flex items-center gap-3 text-xs font-semibold">
+                <div class="flex flex-wrap items-center gap-3 text-xs font-semibold">
                     <span class="text-emerald-600">${availableCount} Tersedia</span>
                     <span class="text-slate-300">|</span>
                     <span class="text-slate-500">${bookedCount} Terisi</span>
+                    ${pastCount > 0 ? `<span class="text-slate-300">|</span><span class="text-slate-400">${pastCount} Lewat</span>` : ''}
+                    ${soonCount > 0 ? `<span class="text-slate-300">|</span><span class="text-amber-500">${soonCount} Terlalu Dekat</span>` : ''}
                 </div>
                 <div class="mt-2 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
                     <div class="h-full rounded-full bg-emerald-500" style="width: ${availablePct}%"></div>
@@ -288,6 +309,8 @@ function renderModal() {
                 <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs font-bold text-blue-900">
                     ${count} Slot: ${startTime} – ${endTime} WIB (${durasi} menit)
                 </div>` : ''}
+
+            ${guestInfo}
 
             <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
                 <button type="button" onclick="closeFacilityModal()"
