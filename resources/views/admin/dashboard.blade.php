@@ -5,13 +5,15 @@
 @section('content')
 @php
     use Illuminate\Support\Js;
+    use Illuminate\Support\Facades\Route;
 
     $pendingCount = count($pendingUsers);
 
-    // Daftar pengguna (non-petugas). Kirim dari controller sebagai $pengguna.
-    // Fallback: kalau controller tidak mengirim $pengguna, ambil semua user selain admin & petugas.
-    // Sesuaikan nama kolom/nilai 'role' kalau di database berbeda.
-    $penggunaList  = $pengguna ?? \App\Models\User::whereNotIn('role', ['admin', 'petugas'])->latest()->get();
+    // Daftar pengguna (non-petugas). Dikirim dari controller sebagai $pengguna.
+    // Fallback: semua user selain admin & petugas (termasuk role NULL).
+    $penggunaList = $pengguna ?? \App\Models\User::where(function ($q) {
+        $q->whereNull('role')->orWhereNotIn('role', ['admin', 'petugas']);
+    })->latest()->get();
 
     // Helper tampilan status verifikasi
     $svLabel = function ($v) {
@@ -54,6 +56,18 @@
     ];
 
     $maxOcc = max(1, max($occupancy ?: [1]));
+
+    // ---- Rekap ----
+    $rekapList    = $rekap ?? collect();
+    $sumReservasi = $rekapList->sum('reservations_count');
+    $sumJam       = round($rekapList->sum('jam_terpakai'), 1);
+    $avgOkupansi  = $rekapList->count() ? (int) round($rekapList->avg('okupansi')) : 0;
+    $sumLaporan   = $rekapList->sum('reports_count');
+
+    // Nama route export. Cek dengan: php artisan route:list --name=export
+    // Kalau route-nya tidak ada, tombol ekspor otomatis disembunyikan (tidak error).
+    $exportRoute  = 'admin.export';
+    $exportQuery  = request()->only(['start_date', 'end_date', 'facility_id']);
 
     // Menu sidebar
     $menu = [
@@ -495,7 +509,8 @@
                                 {{-- Petugas --}}
                                 @foreach($petugas as $p)
                                     <tr class="hover:bg-slate-50"
-                                        x-show="(tab === 'semua' || tab === 'petugas') && ('{{ strtolower($p->name.' '.$p->email.' '.$p->nim_nip) }}'.includes(q.toLowerCase()))">
+                                        data-s="{{ mb_strtolower($p->name.' '.$p->email.' '.$p->nim_nip) }}"
+                                        x-show="(tab === 'semua' || tab === 'petugas') && $el.dataset.s.includes(q.toLowerCase())">
                                         <td class="px-6 py-4 font-bold text-slate-900">{{ $p->name }}</td>
                                         <td class="px-6 py-4 text-slate-600 font-mono text-xs">{{ $p->nim_nip }}</td>
                                         <td class="px-6 py-4 text-slate-600">{{ $p->email }}</td>
@@ -518,7 +533,8 @@
                                 {{-- Pengguna --}}
                                 @foreach($penggunaList as $u)
                                     <tr class="hover:bg-slate-50"
-                                        x-show="(tab === 'semua' || tab === 'pengguna') && ('{{ strtolower($u->name.' '.$u->email.' '.($u->nim_nip ?? '')) }}'.includes(q.toLowerCase()))">
+                                        data-s="{{ mb_strtolower($u->name.' '.$u->email.' '.($u->nim_nip ?? '')) }}"
+                                        x-show="(tab === 'semua' || tab === 'pengguna') && $el.dataset.s.includes(q.toLowerCase())">
                                         <td class="px-6 py-4 font-bold text-slate-900">{{ $u->name }}</td>
                                         <td class="px-6 py-4 text-slate-600 font-mono text-xs">{{ $u->nim_nip ?? '—' }}</td>
                                         <td class="px-6 py-4 text-slate-600">{{ $u->email }}</td>
@@ -532,7 +548,7 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 text-right space-x-2">
-                                            @if($u->ktm_path)
+                                            @if($u->ktm_path ?? null)
                                                 <a href="{{ route('admin.users.ktm', $u->id) }}" target="_blank"
                                                    class="text-blue-900 font-bold hover:underline text-xs">Lihat KTM</a>
                                             @endif
@@ -563,7 +579,7 @@
                     <div class="md:hidden divide-y divide-slate-100">
                         @foreach($petugas as $p)
                             <div class="p-4 space-y-2"
-                                 data-s="{{ strtolower($p->name.' '.$p->email.' '.$p->nim_nip) }}"
+                                 data-s="{{ mb_strtolower($p->name.' '.$p->email.' '.$p->nim_nip) }}"
                                  x-show="(tab === 'semua' || tab === 'petugas') && $el.dataset.s.includes(q.toLowerCase())">
                                 <div class="flex items-center justify-between gap-2">
                                     <p class="font-bold text-slate-900 text-sm">{{ $p->name }}</p>
@@ -581,7 +597,7 @@
 
                         @foreach($penggunaList as $u)
                             <div class="p-4 space-y-2"
-                                 data-s="{{ strtolower($u->name.' '.$u->email.' '.($u->nim_nip ?? '')) }}"
+                                 data-s="{{ mb_strtolower($u->name.' '.$u->email.' '.($u->nim_nip ?? '')) }}"
                                  x-show="(tab === 'semua' || tab === 'pengguna') && $el.dataset.s.includes(q.toLowerCase())">
                                 <div class="flex items-center justify-between gap-2">
                                     <p class="font-bold text-slate-900 text-sm">{{ $u->name }}</p>
@@ -592,14 +608,14 @@
                                 <p class="text-xs text-slate-500">Status:
                                     <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $svClass($u->status_verifikasi ?? null) }}">{{ $svLabel($u->status_verifikasi ?? null) }}</span>
                                 </p>
-                                @if($u->ktm_path)
+                                @if($u->ktm_path ?? null)
                                     <a href="{{ route('admin.users.ktm', $u->id) }}" target="_blank"
                                        class="inline-block text-blue-900 font-bold hover:underline text-xs">Lihat KTM</a>
                                 @endif
                                 <button type="button" @click="confirmDeletePengguna = {{ $u->id }}"
-                                    class="w-full mt-2 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition">
-                                Hapus
-                            </button>
+                                        class="w-full mt-2 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition">
+                                    Hapus
+                                </button>
                             </div>
                         @endforeach
 
@@ -653,7 +669,9 @@
             </section>
 
             {{-- ============ VERIFIKASI ============ --}}
-            <section x-show="page === 'verifikasi'" x-cloak class="space-y-6">
+            <section x-show="page === 'verifikasi'" x-cloak
+                     x-data="{ rejectId: null }"
+                     class="space-y-6">
                 <div>
                     <h1 class="text-2xl font-black text-slate-900">Verifikasi Pengguna</h1>
                     <p class="text-sm text-slate-500 mt-1">Verifikasi registrasi mandiri pengguna baru</p>
@@ -663,37 +681,63 @@
                     @if($pendingUsers->isEmpty())
                         <p class="text-center text-sm text-slate-500 py-8">Tidak ada antrean verifikasi.</p>
                     @else
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-50 border-b">
-                                <tr>
-                                    <th class="px-4 py-3">Nama</th>
-                                    <th class="px-4 py-3">NIM/NIP</th>
-                                    <th class="px-4 py-3">Email</th>
-                                    <th class="px-4 py-3 text-right">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($pendingUsers as $u)
-                                    <tr class="border-b">
-                                        <td class="px-4 py-3 font-bold">{{ $u->name }}</td>
-                                        <td class="px-4 py-3 font-mono text-xs">{{ $u->nim_nip }}</td>
-                                        <td class="px-4 py-3">{{ $u->email }}</td>
-                                        <td class="px-4 py-3 text-right space-x-2">
-                                            <form action="{{ route('admin.users.verify', $u->id) }}" method="POST" class="inline">
-                                                @csrf
-                                                <button class="px-3 py-1 bg-emerald-600 text-white text-xs rounded">Verifikasi</button>
-                                            </form>
-                                            <form action="{{ route('admin.users.reject', $u->id) }}" method="POST" class="inline">
-                                                @csrf
-                                                <button class="px-3 py-1 bg-rose-600 text-white text-xs rounded">Tolak</button>
-                                            </form>
-                                        </td>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 border-b">
+                                    <tr>
+                                        <th class="px-4 py-3">Nama</th>
+                                        <th class="px-4 py-3">NIM/NIP</th>
+                                        <th class="px-4 py-3">Email</th>
+                                        <th class="px-4 py-3 text-right">Aksi</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    @foreach($pendingUsers as $u)
+                                        <tr class="border-b">
+                                            <td class="px-4 py-3 font-bold">{{ $u->name }}</td>
+                                            <td class="px-4 py-3 font-mono text-xs">{{ $u->nim_nip }}</td>
+                                            <td class="px-4 py-3">{{ $u->email }}</td>
+                                            <td class="px-4 py-3 text-right whitespace-nowrap space-x-2">
+                                                @if($u->ktm_path ?? null)
+                                                    <a href="{{ route('admin.users.ktm', $u->id) }}" target="_blank"
+                                                       class="text-blue-900 font-bold hover:underline text-xs">Lihat KTM</a>
+                                                @endif
+                                                <form action="{{ route('admin.users.verify', $u->id) }}" method="POST" class="inline">
+                                                    @csrf
+                                                    <button class="px-3 py-1 bg-emerald-600 text-white text-xs rounded">Verifikasi</button>
+                                                </form>
+                                                <button type="button" @click="rejectId = {{ $u->id }}"
+                                                        class="px-3 py-1 bg-rose-600 text-white text-xs rounded">Tolak</button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @endif
                 </div>
+
+                {{-- Modal Tolak (alasan wajib diisi, sesuai validasi controller) --}}
+                @foreach($pendingUsers as $u)
+                    <div x-show="rejectId === {{ $u->id }}" x-cloak
+                         class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="rejectId = null"></div>
+                        <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+                            <h3 class="font-black text-slate-900">Tolak Pengajuan?</h3>
+                            <p class="text-sm text-slate-500">Akun <strong>{{ $u->name }}</strong> akan ditolak. Alasan akan dikirim sebagai notifikasi.</p>
+                            <form action="{{ route('admin.users.reject', $u->id) }}" method="POST" class="space-y-4">
+                                @csrf
+                                <textarea name="alasan_tolak" required maxlength="250" rows="3"
+                                          placeholder="Contoh: Foto KTM tidak terbaca"
+                                          class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-900"></textarea>
+                                <div class="flex justify-end gap-2">
+                                    <button type="button" @click="rejectId = null" class="px-4 py-2 bg-slate-100 rounded-lg text-sm font-bold">Batal</button>
+                                    <button class="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-bold">Ya, Tolak</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                @endforeach
             </section>
 
             {{-- ============ FASILITAS ============ --}}
@@ -710,34 +754,36 @@
                 </div>
 
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6">
-                    <table class="w-full text-sm text-left">
-                        <thead class="bg-slate-50 border-b">
-                            <tr>
-                                <th class="px-4 py-3">Nama</th>
-                                <th class="px-4 py-3">Tipe</th>
-                                <th class="px-4 py-3">Lokasi</th>
-                                <th class="px-4 py-3">Status</th>
-                                <th class="px-4 py-3 text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($facilities as $f)
-                                <tr class="border-b">
-                                    <td class="px-4 py-3 font-bold">{{ $f->nama_fasilitas }}</td>
-                                    <td class="px-4 py-3">{{ $f->tipe }}</td>
-                                    <td class="px-4 py-3">{{ $f->lokasi }}</td>
-                                    <td class="px-4 py-3">
-                                        <span class="px-2 py-0.5 rounded text-xs font-bold {{ $badge[$f->status] ?? '' }}">{{ $statusLabel[$f->status] ?? $f->status }}</span>
-                                    </td>
-                                    <td class="px-4 py-3 text-right space-x-2">
-                                        <button @click="editFacility({{ Js::from($f->only(['id','nama_fasilitas','tipe','lokasi','kapasitas','deskripsi','status'])) }})" class="px-3 py-1 bg-slate-100 text-slate-700 text-xs rounded font-bold">Edit</button>
-                                    </td>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-50 border-b">
+                                <tr>
+                                    <th class="px-4 py-3">Nama</th>
+                                    <th class="px-4 py-3">Tipe</th>
+                                    <th class="px-4 py-3">Lokasi</th>
+                                    <th class="px-4 py-3">Status</th>
+                                    <th class="px-4 py-3 text-right">Aksi</th>
                                 </tr>
-                            @empty
-                                <tr><td colspan="5" class="text-center py-6 text-slate-400">Belum ada fasilitas</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @forelse($facilities as $f)
+                                    <tr class="border-b">
+                                        <td class="px-4 py-3 font-bold">{{ $f->nama_fasilitas }}</td>
+                                        <td class="px-4 py-3">{{ $f->tipe }}</td>
+                                        <td class="px-4 py-3">{{ $f->lokasi }}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="px-2 py-0.5 rounded text-xs font-bold {{ $badge[$f->status] ?? '' }}">{{ $statusLabel[$f->status] ?? $f->status }}</span>
+                                        </td>
+                                        <td class="px-4 py-3 text-right space-x-2">
+                                            <button @click="editFacility({{ Js::from($f->only(['id','nama_fasilitas','tipe','lokasi','kapasitas','deskripsi','status'])) }})" class="px-3 py-1 bg-slate-100 text-slate-700 text-xs rounded font-bold">Edit</button>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5" class="text-center py-6 text-slate-400">Belum ada fasilitas</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
@@ -748,12 +794,120 @@
                     <p class="text-sm text-slate-500 mt-1">Rekap okupansi fasilitas dan frekuensi kerusakan</p>
                 </div>
 
-                <form method="GET" action="{{ route('admin.dashboard') }}" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+                {{-- Filter: nama field harus sama dengan yang dibaca controller (start_date, end_date, facility_id) --}}
+                <form method="GET" action="{{ route('admin.dashboard') }}"
+                      class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
                     <input type="hidden" name="page" value="rekap">
-                    <div class="flex justify-end gap-2">
-                        <button type="submit" class="px-4 py-2 bg-blue-900 text-white text-sm font-bold rounded-lg">Terapkan Filter</button>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1.5">Dari Tanggal</label>
+                            <input type="date" name="start_date" value="{{ request('start_date') }}" class="{{ $input }}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1.5">Sampai Tanggal</label>
+                            <input type="date" name="end_date" value="{{ request('end_date') }}" class="{{ $input }}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1.5">Fasilitas</label>
+                            <select name="facility_id" class="{{ $input }}">
+                                <option value="">Semua Fasilitas</option>
+                                @foreach($facilities as $f)
+                                    <option value="{{ $f->id }}" @selected((string) request('facility_id') === (string) $f->id)>{{ $f->nama_fasilitas }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <p class="text-xs text-slate-500">
+                            Periode: <strong class="text-slate-700">{{ $periode['start'] ?? '-' }}</strong>
+                            s/d <strong class="text-slate-700">{{ $periode['end'] ?? '-' }}</strong>
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="{{ route('admin.dashboard', ['page' => 'rekap']) }}"
+                               class="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-bold rounded-lg">Reset</a>
+                            <button type="submit" class="px-4 py-2 bg-blue-900 text-white text-sm font-bold rounded-lg">Terapkan Filter</button>
+                        </div>
                     </div>
                 </form>
+
+                {{-- Ringkasan --}}
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                        <p class="text-[11px] font-bold text-slate-500">Total Reservasi</p>
+                        <p class="text-2xl font-black text-slate-900 mt-1">{{ $sumReservasi }}</p>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                        <p class="text-[11px] font-bold text-slate-500">Jam Terpakai</p>
+                        <p class="text-2xl font-black text-slate-900 mt-1">{{ $sumJam }}</p>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                        <p class="text-[11px] font-bold text-slate-500">Rata-rata Okupansi</p>
+                        <p class="text-2xl font-black text-slate-900 mt-1">{{ $avgOkupansi }}%</p>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                        <p class="text-[11px] font-bold text-slate-500">Total Laporan</p>
+                        <p class="text-2xl font-black text-slate-900 mt-1">{{ $sumLaporan }}</p>
+                    </div>
+                </div>
+
+                {{-- Tabel rekap per fasilitas --}}
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                        <h3 class="font-black text-slate-900">Rekap per Fasilitas</h3>
+                        @if(Route::has($exportRoute))
+                            <div class="flex flex-wrap gap-2">
+                                <a href="{{ route($exportRoute, array_merge(['format' => 'csv'], $exportQuery)) }}"
+                                   class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition">CSV</a>
+                                <a href="{{ route($exportRoute, array_merge(['format' => 'excel'], $exportQuery)) }}"
+                                   class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">Excel</a>
+                                <a href="{{ route($exportRoute, array_merge(['format' => 'pdf'], $exportQuery)) }}" target="_blank"
+                                   class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition">PDF</a>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Fasilitas</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Tipe</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Reservasi</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Jam</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Okupansi</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Laporan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse($rekapList as $f)
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-6 py-3">
+                                            <p class="font-bold text-slate-900">{{ $f->nama_fasilitas }}</p>
+                                            <p class="text-xs text-slate-400">{{ $f->lokasi }}</p>
+                                        </td>
+                                        <td class="px-6 py-3 text-slate-600">{{ $f->tipe }}</td>
+                                        <td class="px-6 py-3 text-right font-bold text-slate-900">{{ $f->reservations_count }}</td>
+                                        <td class="px-6 py-3 text-right text-slate-600">{{ $f->jam_terpakai }}</td>
+                                        <td class="px-6 py-3 min-w-[160px]">
+                                            <div class="flex items-center gap-2">
+                                                <div class="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                                    <div class="h-full rounded-full bg-blue-900" style="width: {{ $f->okupansi }}%"></div>
+                                                </div>
+                                                <span class="text-xs font-black text-slate-700 w-9 text-right">{{ $f->okupansi }}%</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-3 text-right font-bold {{ $f->reports_count > 0 ? 'text-rose-600' : 'text-slate-400' }}">{{ $f->reports_count }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-400">Tidak ada data untuk filter ini.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </section>
 
         </main>
@@ -772,25 +926,48 @@
                     <label class="block text-sm font-bold mb-1">Nama Fasilitas</label>
                     <input name="nama_fasilitas" x-model="form.nama_fasilitas" required class="{{ $input }}">
                 </div>
-                <div>
-                    <label class="block text-sm font-bold mb-1">Tipe</label>
-                    <select name="tipe" x-model="form.tipe" class="{{ $input }}">
-                        @foreach(['Ruangan','Laboratorium','Olahraga','Fasilitas Umum'] as $t)
-                            <option>{{ $t }}</option>
-                        @endforeach
-                    </select>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">Tipe</label>
+                        <select name="tipe" x-model="form.tipe" class="{{ $input }}">
+                            @foreach(['Ruangan','Laboratorium','Olahraga','Fasilitas Umum'] as $t)
+                                <option>{{ $t }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">Status</label>
+                        {{-- Wajib: controller memvalidasi 'status' required --}}
+                        <select name="status" x-model="form.status" class="{{ $input }}">
+                            @foreach($statusLabel as $val => $lbl)
+                                <option value="{{ $val }}">{{ $lbl }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">Kapasitas</label>
+                        <input type="number" min="1" name="kapasitas" x-model="form.kapasitas" required class="{{ $input }}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">Lokasi</label>
+                        <input name="lokasi" x-model="form.lokasi" required class="{{ $input }}">
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold mb-1">Kapasitas</label>
-                    <input type="number" name="kapasitas" x-model="form.kapasitas" required class="{{ $input }}">
+                    <label class="block text-sm font-bold mb-1">Deskripsi</label>
+                    <textarea name="deskripsi" x-model="form.deskripsi" rows="3"
+                              class="w-full px-4 py-3 border border-slate-200 rounded-lg bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-900 transition"></textarea>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold mb-1">Lokasi</label>
-                    <input name="lokasi" x-model="form.lokasi" required class="{{ $input }}">
+                    <label class="block text-sm font-bold mb-1">Foto <span class="font-normal text-slate-400">(opsional, maks 2 MB)</span></label>
+                    <input type="file" name="foto" accept="image/*"
+                           class="block w-full text-sm text-slate-600 file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-bold">
                 </div>
                 <div class="flex justify-end gap-2 pt-4">
                     <button type="button" @click="modal = false" class="px-4 py-2 bg-slate-100 rounded-lg text-sm font-bold">Batal</button>
-                    <button type="submit" :disabled="submittingFacility" class="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm font-bold">
+                    <button type="submit" :disabled="submittingFacility" class="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm font-bold disabled:opacity-60">
                         <span x-text="submittingFacility ? 'Menyimpan...' : 'Simpan'"></span>
                     </button>
                 </div>

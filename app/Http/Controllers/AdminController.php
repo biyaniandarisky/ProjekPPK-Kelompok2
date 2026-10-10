@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Models\Facility;
@@ -24,21 +23,48 @@ class AdminController extends Controller
             ->with('success', $msg);
     }
 
+    /**
+     * Query semua akun "pengguna" (bukan admin & bukan petugas).
+     * whereNotIn saja TIDAK cocok dengan role NULL, jadi NULL ditambahkan manual.
+     */
+    private function penggunaQuery()
+    {
+        return User::where(function ($q) {
+            $q->whereNull('role')->orWhereNotIn('role', ['admin', 'petugas']);
+        });
+    }
+
+    private function parseDate($value, Carbon $default): Carbon
+    {
+        try {
+            return $value ? Carbon::parse($value) : $default;
+        } catch (\Throwable $e) {
+            return $default;
+        }
+    }
+
+    /** Periode rekap: default awal bulan s/d hari ini. Tanggal terbalik otomatis ditukar. */
+    private function period(Request $request): array
+    {
+        $start = $this->parseDate($request->input('start_date'), now()->startOfMonth())->startOfDay();
+        $end   = $this->parseDate($request->input('end_date'), now())->endOfDay();
+
+        if ($start->gt($end)) {
+            [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+        }
+
+        return [$start, $end];
+    }
+
     private function buildRekap(Request $request)
     {
-        $start = $request->filled('start_date')
-            ? Carbon::parse($request->start_date)->startOfDay()
-            : now()->startOfMonth();
+        [$start, $end] = $this->period($request);
 
-        $end = $request->filled('end_date')
-            ? Carbon::parse($request->end_date)->endOfDay()
-            : now()->endOfDay();
-
-        $hari = max(1, $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1);
+        $hari = max(1, (int) $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1);
         $jamTersedia = $hari * 8;
 
         $facilities = Facility::query()
-            ->when($request->facility_id, fn($q, $id) => $q->where('id', $id))
+            ->when($request->filled('facility_id'), fn($q) => $q->where('id', $request->facility_id))
             ->withCount([
                 'reservations' => fn($q) => $q
                     ->whereNotIn('status', ['rejected', 'cancelled'])
@@ -55,7 +81,7 @@ class AdminController extends Controller
                 ->whereBetween('tanggal', [$start->toDateString(), $end->toDateString()])
                 ->get(['start_time', 'end_time'])
                 ->each(function ($r) use (&$jam) {
-                    $jam += max(0, Carbon::parse($r->start_time)->diffInMinutes(Carbon::parse($r->end_time)) / 60);
+                    $jam += abs(Carbon::parse($r->start_time)->diffInMinutes(Carbon::parse($r->end_time))) / 60;
                 });
 
             $f->jam_terpakai = round($jam, 1);
@@ -84,6 +110,8 @@ class AdminController extends Controller
             ->map(fn($j) => $totalLaporan ? (int) round($j / $totalLaporan * 100) : 0)
             ->toArray();
 
+        [$start, $end] = $this->period($request);
+
         return view('admin.dashboard', [
             'totalUsers'            => User::count(),
             'reservationsThisMonth' => Reservation::whereMonth('tanggal', now()->month)
@@ -94,8 +122,13 @@ class AdminController extends Controller
             'occupancy'             => $occupancy,
             'damageFreq'            => $damageFreq,
             'petugas'               => User::where('role', 'petugas')->latest()->get(),
+            'pengguna'              => $this->penggunaQuery()->latest()->get(),
             'facilities'            => Facility::orderBy('id')->get(),
             'rekap'                 => $this->buildRekap($request),
+            'periode'               => [
+                'start' => $start->translatedFormat('d M Y'),
+                'end'   => $end->translatedFormat('d M Y'),
+            ],
         ]);
     }
 
@@ -142,13 +175,14 @@ class AdminController extends Controller
             'status_verifikasi' => 'verified',
         ]));
 
-        return $this->toPage('petugas', 'Akun petugas berhasil didaftarkan.');
+        // Halaman 'petugas' tidak ada di menu -> dulu bikin layar kosong. Sekarang ke Data Akun.
+        return $this->toPage('data_akun', 'Akun petugas berhasil didaftarkan.');
     }
 
     public function destroyPetugas($id)
     {
         User::where('role', 'petugas')->findOrFail($id)->delete();
-        return $this->toPage('petugas', 'Akun petugas dihapus.');
+        return $this->toPage('data_akun', 'Akun petugas dihapus.');
     }
 
     /* =========================================================
@@ -168,13 +202,23 @@ class AdminController extends Controller
 
         User::create(array_merge($data, ['status_verifikasi' => 'verified']));
 
-        return back()->with('success', "Akun {$data['role']} berhasil didaftarkan.");
+        return $this->toPage('data_akun', "Akun {$data['role']} berhasil didaftarkan.");
     }
 
     public function storePenggunaDirect(Request $request)
     {
         $request->merge(['role' => 'pengguna']);
         return $this->storeUserByAdmin($request);
+    }
+
+    public function destroyPengguna($id)
+    {
+        // Hanya akun pengguna biasa yang boleh dihapus lewat route ini
+        $user = $this->penggunaQuery()->findOrFail($id);
+        $nama = $user->name;
+        $user->delete();
+
+        return $this->toPage('data_akun', "Akun pengguna {$nama} berhasil dihapus.");
     }
 
     /* =========================================================
@@ -383,18 +427,5 @@ class AdminController extends Controller
             }
             fclose($out);
         }, "{$name}.csv", ['Content-Type' => 'text/csv']);
-    }
-
-    //Destroy Pengguna
-    public function destroyPengguna($id)
-    {
-        // Hanya akun pengguna biasa yang boleh dihapus lewat route ini
-        $user = User::whereNotIn('role', ['admin', 'petugas'])->findOrFail($id);
-        $nama = $user->name;
-        $user->delete();
-
-        return redirect()
-            ->route('admin.dashboard', ['page' => 'data_akun'])
-            ->with('success', "Akun pengguna {$nama} berhasil dihapus.");
     }
 }
