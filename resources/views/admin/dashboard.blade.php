@@ -9,7 +9,24 @@
     $pendingCount = count($pendingUsers);
 
     // Daftar pengguna (non-petugas). Kirim dari controller sebagai $pengguna.
-    $penggunaList  = $pengguna ?? collect();
+    // Fallback: kalau controller tidak mengirim $pengguna, ambil semua user selain admin & petugas.
+    // Sesuaikan nama kolom/nilai 'role' kalau di database berbeda.
+    $penggunaList  = $pengguna ?? \App\Models\User::whereNotIn('role', ['admin', 'petugas'])->latest()->get();
+
+    // Helper tampilan status verifikasi
+    $svLabel = function ($v) {
+        $v = strtolower((string) $v);
+        if ($v === '') return 'Aktif';
+        if ($v === 'pending') return 'Pending';
+        if (str_contains($v, 'tolak') || str_contains($v, 'reject')) return 'Ditolak';
+        return 'Terverifikasi';
+    };
+    $svClass = function ($v) {
+        $v = strtolower((string) $v);
+        if ($v === 'pending') return 'bg-amber-50 text-amber-700';
+        if (str_contains($v, 'tolak') || str_contains($v, 'reject')) return 'bg-rose-50 text-rose-700';
+        return 'bg-emerald-50 text-emerald-700';
+    };
     $totalPetugas  = count($petugas);
     $totalPengguna = count($penggunaList);
 
@@ -144,11 +161,12 @@
         init() {
             this.form = { ...this.blank };
             this.$watch('sidebar', v => document.body.classList.toggle('overflow-hidden', v));
+            // Setiap pindah halaman, langsung kembali ke atas
+            this.$watch('page', () => window.scrollTo({ top: 0, behavior: 'auto' }));
         },
         go(target) {
             this.page = target;
             this.sidebar = false;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         },
         newFacility() {
             this.editing = null;
@@ -226,7 +244,7 @@
 
     {{-- MAIN CONTENT --}}
     <div class="lg:ml-64 pt-14">
-        <main class="p-4 sm:p-6 lg:p-8 space-y-6">
+        <main class="p-4 sm:p-5 lg:p-6 space-y-5">
 
             {{-- FLASH --}}
             @if(session('success'))
@@ -287,7 +305,7 @@
                             <h3 class="font-black text-slate-900">Okupansi Fasilitas</h3>
                             <span class="text-xs font-bold text-slate-400">Minggu ini</span>
                         </div>
-                        <div class="flex items-end justify-between gap-2 h-52">
+                        <div class="flex items-end justify-between gap-2 h-40">
                             @foreach($occupancy as $day => $count)
                                 <div class="flex-1 flex flex-col items-center justify-end h-full gap-2 group">
                                     <span class="text-[10px] font-bold text-slate-600 opacity-0 group-hover:opacity-100 transition">{{ $count }}</span>
@@ -492,6 +510,7 @@
                                     <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide">Email</th>
                                     <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide">Jenis</th>
                                     <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide">Unit</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide">Status</th>
                                     <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Aksi</th>
                                 </tr>
                             </thead>
@@ -508,6 +527,9 @@
                                             <span class="px-2.5 py-1 rounded text-[10px] font-bold bg-blue-50 text-blue-700">Petugas</span>
                                         </td>
                                         <td class="px-6 py-4 text-slate-600">{{ $p->unit ?? '—' }}</td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-2.5 py-1 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">Aktif</span>
+                                        </td>
                                         <td class="px-6 py-4 text-right">
                                             <button type="button" @click="confirmDelete = {{ $p->id }}"
                                                     class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition">
@@ -529,6 +551,11 @@
                                             <span class="px-2.5 py-1 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">Pengguna</span>
                                         </td>
                                         <td class="px-6 py-4 text-slate-400">—</td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-2.5 py-1 rounded text-[10px] font-bold {{ $svClass($u->status_verifikasi ?? null) }}">
+                                                {{ $svLabel($u->status_verifikasi ?? null) }}
+                                            </span>
+                                        </td>
                                         <td class="px-6 py-4 text-right">
                                             @if($u->ktm_path)
                                                 <a href="{{ route('admin.users.ktm', $u->id) }}" target="_blank"
@@ -542,7 +569,7 @@
 
                                 @if($totalPetugas + $totalPengguna === 0)
                                     <tr>
-                                        <td colspan="6" class="px-6 py-16 text-center">
+                                        <td colspan="7" class="px-6 py-16 text-center">
                                             <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                                             </svg>
@@ -585,6 +612,9 @@
                                 </div>
                                 <p class="text-xs text-slate-500 font-mono">{{ $u->nim_nip ?? '—' }}</p>
                                 <p class="text-xs text-slate-500 break-all">{{ $u->email }}</p>
+                                <p class="text-xs text-slate-500">Status:
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $svClass($u->status_verifikasi ?? null) }}">{{ $svLabel($u->status_verifikasi ?? null) }}</span>
+                                </p>
                                 @if($u->ktm_path)
                                     <a href="{{ route('admin.users.ktm', $u->id) }}" target="_blank"
                                        class="inline-block text-blue-900 font-bold hover:underline text-xs">Lihat KTM</a>
