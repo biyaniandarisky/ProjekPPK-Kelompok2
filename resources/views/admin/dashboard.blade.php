@@ -10,7 +10,6 @@
     $pendingCount = count($pendingUsers);
 
     // Daftar pengguna (non-petugas). Dikirim dari controller sebagai $pengguna.
-    // Fallback: semua user selain admin & petugas (termasuk role NULL).
     $penggunaList = $pengguna ?? \App\Models\User::where(function ($q) {
         $q->whereNull('role')->orWhereNotIn('role', ['admin', 'petugas']);
     })->latest()->get();
@@ -58,16 +57,21 @@
     $maxOcc = max(1, max($occupancy ?: [1]));
 
     // ---- Rekap ----
-    $rekapList    = $rekap ?? collect();
-    $sumReservasi = $rekapList->sum('reservations_count');
-    $sumJam       = round($rekapList->sum('jam_terpakai'), 1);
-    $avgOkupansi  = $rekapList->count() ? (int) round($rekapList->avg('okupansi')) : 0;
-    $sumLaporan   = $rekapList->sum('reports_count');
+    $rekapList     = $rekap ?? collect();
+    $rekapLokasi   = $rekapLokasi ?? collect();
+    $sumReservasi  = $rekapList->sum('reservations_count');
+    $sumJam        = round($rekapList->sum('jam_terpakai'), 1);
+    $avgOkupansi   = $rekapList->count() ? (int) round($rekapList->avg('okupansi')) : 0;
+    $sumLaporan    = $rekapList->sum('reports_count');
+    $sumKerusakan  = $rekapList->sum('kerusakan_count');
+    $maxKerusakanLokasi = max(1, (int) ($rekapLokasi->max('kerusakan') ?? 0));
 
-    // Nama route export. Cek dengan: php artisan route:list --name=export
-    // Kalau route-nya tidak ada, tombol ekspor otomatis disembunyikan (tidak error).
-    $exportRoute  = 'admin.export';
-    $exportQuery  = request()->only(['start_date', 'end_date', 'facility_id']);
+    // Route export (admin.rekap.export). Kalau tidak ada, tombol ekspor otomatis disembunyikan.
+    $exportRoute = 'admin.rekap.export';
+    $exportQuery = request()->only(['start_date', 'end_date', 'facility_id']);
+
+    // Halaman awal: ?page=... > tab asal form yang gagal validasi > flash session > dashboard
+    $initialPage = request('page') ?: (old('_form') ?: (session('page') ?: 'dashboard'));
 
     // Menu sidebar
     $menu = [
@@ -82,7 +86,7 @@
     // Kartu statistik
     $statCards = [
         [
-            'label' => 'Total Pengguna',
+            'label' => 'Total Akun',
             'value' => $totalUsers,
             'subtitle' => 'Terdaftar di sistem',
             'page' => 'data_akun',
@@ -102,7 +106,7 @@
         [
             'label' => 'Laporan Bulan Ini',
             'value' => $reportsThisMonth,
-            'subtitle' => 'Perlu ditindak',
+            'subtitle' => 'Kendala & kerusakan',
             'page' => 'rekap',
             'gradient' => 'from-amber-400 to-amber-500',
             'text_color' => 'text-amber-50',
@@ -124,7 +128,7 @@
         [
             'title' => 'Tambah Akun',
             'badge' => 'Manajemen User',
-            'desc' => 'Daftarkan akun petugas atau pengguna baru langsung tanpa verifikasi.',
+            'desc' => 'Daftarkan akun petugas atau pengguna (mahasiswa/dosen/staf) langsung tanpa verifikasi.',
             'page' => 'tambah_akun',
             'overlay' => 'from-blue-950/90 to-blue-900/80',
             'badge_color' => 'bg-blue-500/30 text-blue-200 border-blue-400/30',
@@ -154,7 +158,7 @@
         [
             'title' => 'Data Fasilitas',
             'badge' => 'Master Data',
-            'desc' => 'Kelola seluruh data fasilitas kampus: tambah, edit, nonaktifkan.',
+            'desc' => 'Kelola data fasilitas kampus: tambah, edit, dan nonaktifkan.',
             'page' => 'fasilitas',
             'overlay' => 'from-emerald-950/90 to-emerald-900/80',
             'badge_color' => 'bg-emerald-500/30 text-emerald-100 border-emerald-400/30',
@@ -165,7 +169,7 @@
 @endphp
 
 <div x-data="{
-        page: '{{ request('page', session('page', 'dashboard')) }}',
+        page: '{{ $initialPage }}',
         sidebar: false,
         modal: false,
         editing: null,
@@ -269,6 +273,15 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <span>{{ session('success') }}</span>
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium flex items-start gap-2">
+                    <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>{{ session('error') }}</span>
                 </div>
             @endif
 
@@ -387,15 +400,18 @@
             <section x-show="page === 'tambah_akun'" x-cloak class="space-y-6">
                 <div>
                     <h1 class="text-2xl font-black text-slate-900">Tambah Akun</h1>
-                    <p class="text-sm text-slate-500 mt-1">Daftarkan akun petugas atau pengguna baru tanpa proses verifikasi</p>
+                    <p class="text-sm text-slate-500 mt-1">
+                        Daftarkan akun petugas atau pengguna (mahasiswa/dosen/staf) langsung, tanpa registrasi mandiri maupun verifikasi.
+                    </p>
                 </div>
 
                 <form method="POST"
-                      x-data="{ role: 'petugas', submitting: false }" @submit="submitting = true"
+                      x-data="{ role: '{{ old('_jenis', 'petugas') }}', submitting: false }" @submit="submitting = true"
                       :action="role === 'petugas' ? '{{ route('admin.petugas.store') }}' : '{{ route('admin.pengguna.store') }}'"
                       class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
                     @csrf
-                    <input type="hidden" name="page" value="data_akun">
+                    <input type="hidden" name="_form" value="tambah_akun">
+                    <input type="hidden" name="_jenis" :value="role">
 
                     <div class="md:col-span-2">
                         <label class="block text-sm font-bold text-slate-700 mb-1.5">Jenis Akun <span class="text-rose-500">*</span></label>
@@ -415,31 +431,43 @@
 
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-1.5" x-text="role === 'petugas' ? 'Nama Petugas *' : 'Nama Pengguna *'"></label>
-                        <input name="name" required placeholder="Nama lengkap" class="{{ $input }}">
+                        <input name="name" required value="{{ old('name') }}" placeholder="Nama lengkap" class="{{ $input }}">
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-1.5" x-text="role === 'petugas' ? 'NIP *' : 'NIM / NIP *'"></label>
-                        <input name="nim_nip" required
+                        <input name="nim_nip" required value="{{ old('nim_nip') }}"
                                :placeholder="role === 'petugas' ? 'Nomor induk petugas' : 'NIM atau NIP pengguna'"
                                class="{{ $input }}">
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-1.5">Email <span class="text-rose-500">*</span></label>
-                        <input type="email" name="email" required placeholder="email@kampus.ac.id" class="{{ $input }}">
+                        <input type="email" name="email" required value="{{ old('email') }}" placeholder="email@kampus.ac.id" class="{{ $input }}">
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-1.5">No. HP</label>
-                        <input name="no_hp" placeholder="08xxxxxxxxxx" class="{{ $input }}">
+                        <input name="no_hp" value="{{ old('no_hp') }}" placeholder="08xxxxxxxxxx" class="{{ $input }}">
                     </div>
 
+                    {{-- Khusus petugas --}}
                     <div x-show="role === 'petugas'">
                         <label class="block text-sm font-bold text-slate-700 mb-1.5">Unit / Divisi</label>
                         <select name="unit" :disabled="role !== 'petugas'" class="{{ $input }}">
                             @foreach(['Sarpras','IT','Kebersihan','Keamanan'] as $u)
-                                <option>{{ $u }}</option>
+                                <option @selected(old('unit') === $u)>{{ $u }}</option>
                             @endforeach
                         </select>
                     </div>
+
+                    {{-- Khusus pengguna --}}
+                    <div x-show="role === 'pengguna'" x-cloak>
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">Tipe Pengguna <span class="text-rose-500">*</span></label>
+                        <select name="tipe_pengguna" :disabled="role !== 'pengguna'" :required="role === 'pengguna'" class="{{ $input }}">
+                            @foreach(['mahasiswa' => 'Mahasiswa', 'dosen' => 'Dosen', 'staf' => 'Staf'] as $val => $lbl)
+                                <option value="{{ $val }}" @selected(old('tipe_pengguna') === $val)>{{ $lbl }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-1.5">Password Awal <span class="text-rose-500">*</span></label>
                         <input type="password" name="password" required minlength="8" placeholder="Min. 8 karakter" class="{{ $input }}">
@@ -539,7 +567,9 @@
                                         <td class="px-6 py-4 text-slate-600 font-mono text-xs">{{ $u->nim_nip ?? '—' }}</td>
                                         <td class="px-6 py-4 text-slate-600">{{ $u->email }}</td>
                                         <td class="px-6 py-4">
-                                            <span class="px-2.5 py-1 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">Pengguna</span>
+                                            <span class="px-2.5 py-1 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                                                {{ ($u->tipe_pengguna ?? null) ? ucfirst($u->tipe_pengguna) : 'Pengguna' }}
+                                            </span>
                                         </td>
                                         <td class="px-6 py-4 text-slate-400">—</td>
                                         <td class="px-6 py-4">
@@ -601,7 +631,9 @@
                                  x-show="(tab === 'semua' || tab === 'pengguna') && $el.dataset.s.includes(q.toLowerCase())">
                                 <div class="flex items-center justify-between gap-2">
                                     <p class="font-bold text-slate-900 text-sm">{{ $u->name }}</p>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">Pengguna</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                                        {{ ($u->tipe_pengguna ?? null) ? ucfirst($u->tipe_pengguna) : 'Pengguna' }}
+                                    </span>
                                 </div>
                                 <p class="text-xs text-slate-500 font-mono">{{ $u->nim_nip ?? '—' }}</p>
                                 <p class="text-xs text-slate-500 break-all">{{ $u->email }}</p>
@@ -639,7 +671,6 @@
                                 <button type="button" @click="confirmDeletePetugas = null" class="px-4 py-2 bg-slate-100 rounded-lg text-sm font-bold">Batal</button>
                                 <form action="{{ route('admin.petugas.destroy', $p->id) }}" method="POST">
                                     @csrf @method('DELETE')
-                                    <input type="hidden" name="page" value="data_akun">
                                     <button class="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-bold">Ya, Hapus</button>
                                 </form>
                             </div>
@@ -659,7 +690,6 @@
                                 <button type="button" @click="confirmDeletePengguna = null" class="px-4 py-2 bg-slate-100 rounded-lg text-sm font-bold">Batal</button>
                                 <form action="{{ route('admin.pengguna.destroy', $u->id) }}" method="POST">
                                     @csrf @method('DELETE')
-                                    <input type="hidden" name="page" value="data_akun">
                                     <button class="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-bold">Ya, Hapus</button>
                                 </form>
                             </div>
@@ -674,7 +704,9 @@
                      class="space-y-6">
                 <div>
                     <h1 class="text-2xl font-black text-slate-900">Verifikasi Pengguna</h1>
-                    <p class="text-sm text-slate-500 mt-1">Verifikasi registrasi mandiri pengguna baru</p>
+                    <p class="text-sm text-slate-500 mt-1">
+                        Verifikasi atau tolak registrasi mandiri pengguna. Akun baru belum bisa login sebelum diverifikasi.
+                    </p>
                 </div>
 
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6">
@@ -727,6 +759,7 @@
                             <p class="text-sm text-slate-500">Akun <strong>{{ $u->name }}</strong> akan ditolak. Alasan akan dikirim sebagai notifikasi.</p>
                             <form action="{{ route('admin.users.reject', $u->id) }}" method="POST" class="space-y-4">
                                 @csrf
+                                <input type="hidden" name="_form" value="verifikasi">
                                 <textarea name="alasan_tolak" required maxlength="250" rows="3"
                                           placeholder="Contoh: Foto KTM tidak terbaca"
                                           class="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-900"></textarea>
@@ -745,7 +778,7 @@
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <h1 class="text-2xl font-black text-slate-900">Data Fasilitas</h1>
-                        <p class="text-sm text-slate-500 mt-1">Kelola seluruh data fasilitas kampus</p>
+                        <p class="text-sm text-slate-500 mt-1">Tambah, edit, dan nonaktifkan fasilitas kampus</p>
                     </div>
                     <button @click="newFacility()"
                             class="px-5 py-2.5 bg-blue-900 hover:bg-blue-800 text-white text-sm font-bold rounded-lg transition shadow-sm">
@@ -761,6 +794,7 @@
                                     <th class="px-4 py-3">Nama</th>
                                     <th class="px-4 py-3">Tipe</th>
                                     <th class="px-4 py-3">Lokasi</th>
+                                    <th class="px-4 py-3">Kapasitas</th>
                                     <th class="px-4 py-3">Status</th>
                                     <th class="px-4 py-3 text-right">Aksi</th>
                                 </tr>
@@ -771,15 +805,28 @@
                                         <td class="px-4 py-3 font-bold">{{ $f->nama_fasilitas }}</td>
                                         <td class="px-4 py-3">{{ $f->tipe }}</td>
                                         <td class="px-4 py-3">{{ $f->lokasi }}</td>
+                                        <td class="px-4 py-3">{{ $f->kapasitas }}</td>
                                         <td class="px-4 py-3">
                                             <span class="px-2 py-0.5 rounded text-xs font-bold {{ $badge[$f->status] ?? '' }}">{{ $statusLabel[$f->status] ?? $f->status }}</span>
                                         </td>
-                                        <td class="px-4 py-3 text-right space-x-2">
-                                            <button @click="editFacility({{ Js::from($f->only(['id','nama_fasilitas','tipe','lokasi','kapasitas','deskripsi','status'])) }})" class="px-3 py-1 bg-slate-100 text-slate-700 text-xs rounded font-bold">Edit</button>
+                                        <td class="px-4 py-3 text-right whitespace-nowrap space-x-2">
+                                            <button type="button"
+                                                    @click="editFacility({{ Js::from($f->only(['id','nama_fasilitas','tipe','lokasi','kapasitas','deskripsi','status'])) }})"
+                                                    class="px-3 py-1 bg-slate-100 text-slate-700 text-xs rounded font-bold">Edit</button>
+
+                                            <form action="{{ route('admin.facilities.toggle', $f->id) }}" method="POST" class="inline"
+                                                  onsubmit="return confirm('{{ $f->status === 'nonaktif' ? 'Aktifkan kembali' : 'Nonaktifkan' }} fasilitas ini?')">
+                                                @csrf
+                                                @if($f->status === 'nonaktif')
+                                                    <button class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded font-bold">Aktifkan</button>
+                                                @else
+                                                    <button class="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs rounded font-bold">Nonaktifkan</button>
+                                                @endif
+                                            </form>
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="5" class="text-center py-6 text-slate-400">Belum ada fasilitas</td></tr>
+                                    <tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada fasilitas</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -791,7 +838,7 @@
             <section x-show="page === 'rekap'" x-cloak class="space-y-6">
                 <div>
                     <h1 class="text-2xl font-black text-slate-900">Rekapitulasi & Ekspor</h1>
-                    <p class="text-sm text-slate-500 mt-1">Rekap okupansi fasilitas dan frekuensi kerusakan</p>
+                    <p class="text-sm text-slate-500 mt-1">Rekap okupansi fasilitas dan frekuensi kerusakan per fasilitas / lokasi</p>
                 </div>
 
                 {{-- Filter: nama field harus sama dengan yang dibaca controller (start_date, end_date, facility_id) --}}
@@ -847,25 +894,76 @@
                         <p class="text-2xl font-black text-slate-900 mt-1">{{ $avgOkupansi }}%</p>
                     </div>
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                        <p class="text-[11px] font-bold text-slate-500">Total Laporan</p>
-                        <p class="text-2xl font-black text-slate-900 mt-1">{{ $sumLaporan }}</p>
+                        <p class="text-[11px] font-bold text-slate-500">Frekuensi Kerusakan</p>
+                        <p class="text-2xl font-black text-rose-600 mt-1">{{ $sumKerusakan }}</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">dari {{ $sumLaporan }} total laporan</p>
                     </div>
                 </div>
 
-                {{-- Tabel rekap per fasilitas --}}
+                {{-- Tombol ekspor (mengikuti filter yang sedang aktif) --}}
+                @if(Route::has($exportRoute))
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="font-black text-slate-900 text-sm">Ekspor Rekap</p>
+                            <p class="text-xs text-slate-500">Berisi rekap per fasilitas dan per lokasi sesuai filter di atas.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="{{ route($exportRoute, array_merge(['format' => 'csv'], $exportQuery)) }}"
+                               class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition">CSV</a>
+                            <a href="{{ route($exportRoute, array_merge(['format' => 'excel'], $exportQuery)) }}"
+                               class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">Excel</a>
+                            <a href="{{ route($exportRoute, array_merge(['format' => 'pdf'], $exportQuery)) }}" target="_blank"
+                               class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition">PDF</a>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Rekap per lokasi --}}
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="px-6 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                        <h3 class="font-black text-slate-900">Rekap per Fasilitas</h3>
-                        @if(Route::has($exportRoute))
-                            <div class="flex flex-wrap gap-2">
-                                <a href="{{ route($exportRoute, array_merge(['format' => 'csv'], $exportQuery)) }}"
-                                   class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition">CSV</a>
-                                <a href="{{ route($exportRoute, array_merge(['format' => 'excel'], $exportQuery)) }}"
-                                   class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">Excel</a>
-                                <a href="{{ route($exportRoute, array_merge(['format' => 'pdf'], $exportQuery)) }}" target="_blank"
-                                   class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition">PDF</a>
-                            </div>
-                        @endif
+                    <div class="px-6 py-4 border-b border-slate-200">
+                        <h3 class="font-black text-slate-900">Frekuensi Kerusakan per Lokasi</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Lokasi</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Fasilitas</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Reservasi</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Okupansi</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Kerusakan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse($rekapLokasi as $l)
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-6 py-3 font-bold text-slate-900">{{ $l->lokasi }}</td>
+                                        <td class="px-6 py-3 text-right text-slate-600">{{ $l->fasilitas }}</td>
+                                        <td class="px-6 py-3 text-right text-slate-600">{{ $l->reservasi }}</td>
+                                        <td class="px-6 py-3 text-right text-slate-600">{{ $l->okupansi }}%</td>
+                                        <td class="px-6 py-3 min-w-[180px]">
+                                            <div class="flex items-center gap-2">
+                                                <div class="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                                    <div class="h-full rounded-full bg-rose-600" style="width: {{ round($l->kerusakan / $maxKerusakanLokasi * 100) }}%"></div>
+                                                </div>
+                                                <span class="text-xs font-black w-8 text-right {{ $l->kerusakan > 0 ? 'text-rose-600' : 'text-slate-400' }}">{{ $l->kerusakan }}</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-6 py-10 text-center text-sm text-slate-400">Tidak ada data untuk filter ini.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {{-- Rekap per fasilitas --}}
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200">
+                        <h3 class="font-black text-slate-900">Okupansi & Kerusakan per Fasilitas</h3>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left">
@@ -877,6 +975,7 @@
                                     <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Jam</th>
                                     <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Okupansi</th>
                                     <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Laporan</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Kerusakan</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -897,11 +996,12 @@
                                                 <span class="text-xs font-black text-slate-700 w-9 text-right">{{ $f->okupansi }}%</span>
                                             </div>
                                         </td>
-                                        <td class="px-6 py-3 text-right font-bold {{ $f->reports_count > 0 ? 'text-rose-600' : 'text-slate-400' }}">{{ $f->reports_count }}</td>
+                                        <td class="px-6 py-3 text-right text-slate-600">{{ $f->reports_count }}</td>
+                                        <td class="px-6 py-3 text-right font-bold {{ $f->kerusakan_count > 0 ? 'text-rose-600' : 'text-slate-400' }}">{{ $f->kerusakan_count }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-400">Tidak ada data untuk filter ini.</td>
+                                        <td colspan="7" class="px-6 py-12 text-center text-sm text-slate-400">Tidak ada data untuk filter ini.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -919,7 +1019,7 @@
             <h3 class="font-black text-lg text-slate-900 mb-4" x-text="editing ? 'Edit Fasilitas' : 'Tambah Fasilitas'"></h3>
             <form :action="facilityAction" method="POST" enctype="multipart/form-data" @submit="submittingFacility = true" class="space-y-4">
                 @csrf
-                <input type="hidden" name="page" value="fasilitas">
+                <input type="hidden" name="_form" value="fasilitas">
                 <template x-if="editing"><input type="hidden" name="_method" value="PUT"></template>
 
                 <div>
