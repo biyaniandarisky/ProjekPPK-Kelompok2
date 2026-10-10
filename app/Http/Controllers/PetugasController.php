@@ -250,6 +250,40 @@ class PetugasController extends Controller
     }
 
     /**
+     * Tolak laporan (baru → ditolak). Alasan disimpan di catatan_resolusi.
+     */
+    public function rejectLaporan(Request $request, $id)
+    {
+        $request->validate([
+            'alasan_tolak' => 'required|string|max:250',
+        ], [
+            'alasan_tolak.required' => 'Alasan penolakan wajib diisi.',
+        ]);
+
+        $report = Report::with('facility')->findOrFail($id);
+
+        if ($report->status_laporan !== 'baru') {
+            return back()->withErrors(['msg' => 'Laporan ini sudah tidak berstatus baru.']);
+        }
+
+        $report->update([
+            'status_laporan'   => 'ditolak',
+            'catatan_resolusi' => $request->alasan_tolak,
+            'petugas_id'       => auth()->id(),
+        ]);
+
+        Notification::create([
+            'user_id' => $report->user_id,
+            'judul'   => 'Laporan Ditolak',
+            'pesan'   => 'Laporan kendala Anda pada ' . ($report->facility->nama_fasilitas ?? 'fasilitas') . ' ditolak. Alasan: ' . $request->alasan_tolak,
+            'tipe'    => 'danger',
+            'link'    => route('pengguna.laporan.index'),
+        ]);
+
+        return back()->with('info', 'Laporan telah ditolak.');
+    }
+
+    /**
      * Selesaikan laporan (diproses → selesai).
      */
     public function resolveLaporan(Request $request, $id)

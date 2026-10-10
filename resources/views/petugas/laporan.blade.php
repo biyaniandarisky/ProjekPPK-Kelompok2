@@ -15,6 +15,13 @@
         modalSelesai: null,
         modalDetail: null,
         detail: null,
+        tolak: { open: false, step: 1, id: null, nama: '', alasan: '' },
+        bukaTolak(id, nama) {
+            this.tolak = { open: true, step: 1, id: id, nama: nama, alasan: '' };
+        },
+        tutupTolak() {
+            this.tolak.open = false;
+        },
         matchSearch(haystack) {
             return haystack.toLowerCase().includes(this.searchQuery.toLowerCase());
         },
@@ -43,8 +50,8 @@
 
     {{-- FILTER & SEARCH --}}
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            @foreach(['semua' => 'Semua', 'baru' => 'Baru', 'diproses' => 'Diproses', 'selesai' => 'Selesai'] as $key => $label)
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            @foreach(['semua' => 'Semua', 'baru' => 'Baru', 'diproses' => 'Diproses', 'selesai' => 'Selesai', 'ditolak' => 'Ditolak'] as $key => $label)
                 <button @click="filterStatus = '{{ $key }}'"
                         :class="filterStatus === '{{ $key }}' ? 'bg-blue-900 text-white border-blue-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
                         class="py-2.5 px-2 rounded-xl border text-xs font-bold transition text-center truncate">
@@ -69,9 +76,9 @@
         <div class="hidden lg:grid grid-cols-12 gap-3 px-5 py-3 bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
             <div class="col-span-1">No</div>
             <div class="col-span-3">Fasilitas</div>
-            <div class="col-span-3">Pelapor</div>
+            <div class="col-span-2">Pelapor</div>
             <div class="col-span-2">Kategori</div>
-            <div class="col-span-2 text-right">Aksi</div>
+            <div class="col-span-3 text-right">Aksi</div>
             <div class="col-span-1 text-right">Detail</div>
         </div>
 
@@ -147,6 +154,13 @@
                                         Proses
                                     </button>
                                 </form>
+                                <button type="button" @click="bukaTolak({{ $l->id }}, @js(($l->facility->nama_fasilitas ?? '-') . ' · ' . $l->kategori_laporan))"
+                                        class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold rounded-lg transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    Tolak
+                                </button>
                             @elseif($l->status_laporan === 'diproses')
                                 <button type="button" @click="modalSelesai = {{ $l->id }}"
                                         class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
@@ -173,9 +187,9 @@
                         </div>
 
                         {{-- Pelapor --}}
-                        <div class="col-span-3 min-w-0">
+                        <div class="col-span-2 min-w-0">
                             <p class="text-xs font-semibold text-slate-700 truncate">{{ $l->user->name ?? '-' }}</p>
-                            <p class="text-[10px] text-slate-400 truncate">{{ $l->user->email ?? '-' }}</p>
+                            <p class="text-[10px] text-slate-400 truncate" title="{{ $l->user->email ?? '-' }}">{{ $l->user->email ?? '-' }}</p>
                         </div>
 
                         {{-- Kategori --}}
@@ -185,7 +199,7 @@
                         </div>
 
                         {{-- Aksi --}}
-                        <div class="col-span-2 flex items-center justify-end gap-1.5">
+                        <div class="col-span-3 flex items-center justify-end gap-1.5">
                             @if($l->status_laporan === 'baru')
                                 <form action="{{ route('petugas.laporan.process', $l->id) }}" method="POST"
                                       onsubmit="return confirm('Proses laporan ini? Fasilitas akan otomatis ditandai Dalam Perbaikan.')">
@@ -198,6 +212,13 @@
                                         Proses
                                     </button>
                                 </form>
+                                <button type="button" @click="bukaTolak({{ $l->id }}, @js(($l->facility->nama_fasilitas ?? '-') . ' · ' . $l->kategori_laporan))"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold rounded-lg transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    Tolak
+                                </button>
                             @elseif($l->status_laporan === 'diproses')
                                 <button type="button" @click="modalSelesai = {{ $l->id }}"
                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
@@ -303,9 +324,14 @@
                                  class="w-full rounded-xl border border-slate-200 max-h-64 object-cover">
                         </div>
 
-                        <div x-show="detail.catatan" class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                            <p class="text-xs font-black text-emerald-800 mb-1">Catatan Resolusi</p>
-                            <p class="text-sm text-emerald-900 leading-relaxed" x-text="detail.catatan"></p>
+                        <div x-show="detail.catatan" class="p-3 border rounded-xl"
+                             :class="detail.statusCode === 'ditolak' ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'">
+                            <p class="text-xs font-black mb-1"
+                               :class="detail.statusCode === 'ditolak' ? 'text-rose-800' : 'text-emerald-800'"
+                               x-text="detail.statusCode === 'ditolak' ? 'Alasan Penolakan' : 'Catatan Resolusi'"></p>
+                            <p class="text-sm leading-relaxed"
+                               :class="detail.statusCode === 'ditolak' ? 'text-rose-900' : 'text-emerald-900'"
+                               x-text="detail.catatan"></p>
                         </div>
 
                         <div class="bg-slate-50 p-3 rounded-xl space-y-2">
@@ -328,6 +354,79 @@
                     Tutup
                 </button>
             </div>
+        </div>
+    </div>
+
+    {{-- MODAL TOLAK: LANGKAH 1 (ALASAN) --}}
+    <div x-show="tolak.open && tolak.step === 1" x-cloak
+         x-effect="document.body.classList.toggle('overflow-hidden', tolak.open)"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+         @keydown.escape.window="tutupTolak()">
+        <div @click.outside="tutupTolak()"
+             class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200">
+            <div class="px-6 py-4 border-b border-slate-100">
+                <h3 class="font-black text-slate-900">Tolak Laporan</h3>
+                <p class="text-xs text-slate-500 mt-0.5" x-text="tolak.nama"></p>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                        Alasan Penolakan <span class="text-rose-500">*</span>
+                    </label>
+                    <textarea x-model="tolak.alasan" rows="3" maxlength="250"
+                              placeholder="Contoh: Laporan duplikat / kendala tidak ditemukan di lokasi."
+                              class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-rose-500 resize-none"></textarea>
+                    <p class="text-[10px] text-slate-400 mt-1 text-right" x-text="tolak.alasan.length + '/250'"></p>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" @click="tutupTolak()"
+                            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+                        Batal
+                    </button>
+                    <button type="button" @click="tolak.step = 2" :disabled="tolak.alasan.trim() === ''"
+                            class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition shadow-sm">
+                        Lanjutkan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL TOLAK: LANGKAH 2 (KONFIRMASI) --}}
+    <div x-show="tolak.open && tolak.step === 2" x-cloak
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+         @keydown.escape.window="tutupTolak()">
+        <div @click.outside="tutupTolak()"
+             class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200">
+            <form :action="'{{ route('petugas.laporan.reject', '__ID__') }}'.replace('__ID__', tolak.id)" method="POST"
+                  class="p-6 space-y-4 text-center"
+                  x-data="{ submitting: false }" @submit="submitting = true">
+                @csrf
+                <input type="hidden" name="alasan_tolak" :value="tolak.alasan">
+                <div class="w-14 h-14 mx-auto rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-black text-slate-900">Yakin menolak laporan ini?</h3>
+                    <p class="text-xs text-slate-500 mt-1">Laporan akan berstatus Ditolak dan pelapor menerima notifikasi beserta alasannya. Tindakan ini tidak dapat dibatalkan.</p>
+                </div>
+                <div class="text-left bg-rose-50 border border-rose-200 rounded-xl p-3">
+                    <p class="text-[10px] font-black text-rose-800 uppercase tracking-wider mb-1">Alasan</p>
+                    <p class="text-sm text-rose-900 leading-relaxed break-words" x-text="tolak.alasan"></p>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" @click="tolak.step = 1"
+                            class="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+                        Kembali
+                    </button>
+                    <button type="submit" :disabled="submitting"
+                            class="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-60 text-white text-xs font-bold rounded-xl transition shadow-sm">
+                        <span x-text="submitting ? 'Memproses...' : 'Ya, Tolak'"></span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
