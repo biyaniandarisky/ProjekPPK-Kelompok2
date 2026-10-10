@@ -3,20 +3,14 @@
 @section('title', 'Ajukan Reservasi')
 
 @section('content')
-@php
-    $jamMulaiOptions   = ['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30'];
-    $jamSelesaiOptions = ['07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00'];
-@endphp
-
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
      x-data="reservasiForm({
         facilityId: '{{ $facility->id ?? '' }}',
         tanggal: '{{ $tanggal }}',
         today: '{{ now()->toDateString() }}',
         besok: '{{ now()->addDay()->toDateString() }}',
-        currentTime: '{{ now()->format('H:i') }}',
-        start: '{{ $startTime ?? '08:00' }}',
-        end: '{{ $endTime ?? '08:30' }}',
+        start: '{{ $startTime ?? '' }}',
+        end: '{{ $endTime ?? '' }}',
         availUrl: '{{ route('fasilitas.ketersediaan', ['id' => '__ID__']) }}',
         createUrl: '{{ route('pengguna.reservasi.create') }}'
      })">
@@ -155,7 +149,6 @@
                             </span>
                         </div>
 
-                        {{-- Grid Slot Rentang Waktu (Ukuran 4 kolom agar pas dan luas) --}}
                         <div class="border border-slate-200 rounded-2xl p-4 space-y-3 bg-slate-50/50">
                             <div class="flex items-center justify-between text-xs">
                                 <span class="font-bold text-slate-700">Klik slot untuk memilih rentang jam</span>
@@ -165,7 +158,6 @@
                             <p x-show="loading" class="text-center text-slate-400 py-6 text-xs font-semibold">Memuat ketersediaan slot...</p>
                             <p x-show="!loading && slots.length === 0" class="text-center text-slate-400 py-6 text-xs font-semibold">Pilih fasilitas terlebih dahulu untuk menampilkan slot.</p>
 
-                            {{-- Grid 4 kolom agar tampilannya luas dan rapi --}}
                             <div x-show="!loading && slots.length > 0"
                                  class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-h-72 overflow-y-auto pr-1">
                                 <template x-for="(s, idx) in slots" :key="idx">
@@ -178,25 +170,31 @@
                                             class="p-3 rounded-xl border text-center transition flex flex-col justify-center items-center min-h-[52px]">
                                         <span class="block font-black text-xs" x-text="s.start + ' – ' + s.end"></span>
                                         <span class="block text-[10px] font-semibold mt-0.5 opacity-90"
-                                              x-text="!s.available ? 'Terisi' : (isSelected(s) ? 'Dipilih' : 'Tersedia')"></span>
+                                              x-text="isSelected(s) ? 'Dipilih' : s.label"></span>
                                     </button>
                                 </template>
                             </div>
 
-                            <div class="flex items-center justify-between text-[11px] font-bold pt-2 border-t border-slate-200/60 text-slate-600">
-                                <span class="text-emerald-600 flex items-center gap-1">● <span x-text="slotTersedia"></span> Slot Tersedia</span>
-                                <span class="text-slate-400 flex items-center gap-1">● <span x-text="slotTerisi"></span> Slot Terisi</span>
+                            <div class="flex flex-wrap items-center gap-3 text-[11px] font-bold pt-2 border-t border-slate-200/60 text-slate-600">
+                                <span class="text-emerald-600">● <span x-text="slotTersedia"></span> Tersedia</span>
+                                <span class="text-slate-400">● <span x-text="slotTerisi"></span> Terisi</span>
+                                <span x-show="slotLewat > 0" class="text-slate-400">● <span x-text="slotLewat"></span> Lewat</span>
+                                <span x-show="slotDekat > 0" class="text-amber-500">● <span x-text="slotDekat"></span> Terlalu Dekat</span>
                             </div>
                         </div>
 
                         {{-- Status Pilihan --}}
-                        <div x-show="rangeValid && rangeTersedia" x-cloak
+                        <div x-show="rangeValid && rangeTersedia && durasiJam <= 4" x-cloak
                              class="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold">
                             ✓ Rentang waktu <span x-text="start"></span> – <span x-text="end"></span> WIB (<span x-text="durasiJam"></span> jam) siap diajukan.
                         </div>
                         <div x-show="rangeValid && !rangeTersedia && slots.length > 0" x-cloak
                              class="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold">
-                            ✗ Ada slot terisi di dalam rentang waktu yang Anda pilih. Silakan pilih ulang.
+                            ✗ Ada slot terisi / lewat / terlalu dekat di dalam rentang waktu yang Anda pilih. Silakan pilih ulang.
+                        </div>
+                        <div x-show="durasiJam > 4" x-cloak
+                             class="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold">
+                            ✗ Durasi maksimal 4 jam. Silakan pilih rentang yang lebih pendek.
                         </div>
                     </div>
 
@@ -252,14 +250,16 @@ document.addEventListener('alpine:init', () => {
         tujuan: '',
         slots: [],
         loading: false,
-        selectingStart: true,
+        fromIdx: null,
+        toIdx: null,
 
         init() {
             this.loadSlots();
             this.$watch('tanggal', () => {
                 this.start = '';
                 this.end = '';
-                this.selectingStart = true;
+                this.fromIdx = null;
+                this.toIdx = null;
                 this.loadSlots();
             });
         },
@@ -274,95 +274,113 @@ document.addEventListener('alpine:init', () => {
             if (!this.facilityId) { this.slots = []; return; }
             this.loading = true;
             const url = cfg.availUrl.replace('__ID__', this.facilityId) + '?tanggal=' + this.tanggal;
-            
+
             fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
                 .then(r => r.json())
                 .then(data => {
-                    const isToday = (this.tanggal === this.today);
-                    const [currH, currM] = cfg.currentTime.split(':').map(Number);
-                    const currentTotalMin = (currH * 60) + currM;
-                    const minAllowedMin = currentTotalMin + 120; // Buffer minimal 2 jam
+                    this.slots = (data.slots || []).map(s => ({
+                        start:     s.start,
+                        end:       s.end,
+                        available: s.is_available,
+                        label:     s.label,
+                        booked:    s.is_booked,
+                        past:      s.is_past,
+                        tooSoon:   s.is_too_soon,
+                    }));
 
-                    this.slots = (data.slots || []).map(s => {
-                        let isAvailable = s.is_available;
-
-                        if (isToday && isAvailable) {
-                            const [jam, menit] = s.start.split(':').map(Number);
-                            const slotTotalMin = (jam * 60) + menit;
-                            if (slotTotalMin < minAllowedMin) {
-                                isAvailable = false;
-                            }
+                    // Auto-set kalau ada start & end dari intent
+                    if (this.start && this.end) {
+                        const i = this.slots.findIndex(s => s.start === this.start);
+                        const j = this.slots.findIndex(s => s.end === this.end);
+                        if (i >= 0 && j >= 0 && this.rangeAvailable(i, j)) {
+                            this.fromIdx = i;
+                            this.toIdx = j;
+                        } else {
+                            this.start = '';
+                            this.end = '';
                         }
-
-                        return {
-                            start: s.start,
-                            end: s.end,
-                            available: isAvailable
-                        };
-                    });
+                    }
                 })
                 .catch(() => { this.slots = []; })
                 .finally(() => { this.loading = false; });
         },
 
         get slotTersedia() { return this.slots.filter(s => s.available).length; },
-        get slotTerisi() { return this.slots.filter(s => !s.available).length; },
+        get slotTerisi()   { return this.slots.filter(s => s.booked).length; },
+        get slotLewat()    { return this.slots.filter(s => s.past).length; },
+        get slotDekat()    { return this.slots.filter(s => s.tooSoon).length; },
 
         get durasiJam() {
-            if (!this.start || !this.end) return 0;
-            const d = (this.toMin(this.end) - this.toMin(this.start)) / 60;
+            if (this.fromIdx === null || this.toIdx === null) return 0;
+            const d = (this.toMin(this.slots[this.toIdx].end) - this.toMin(this.slots[this.fromIdx].start)) / 60;
             return d > 0 ? d : 0;
         },
 
         get rangeValid() {
-            return this.start && this.end && this.toMin(this.end) > this.toMin(this.start);
+            return this.fromIdx !== null && this.toIdx !== null;
         },
 
         get rangeTersedia() {
-            if (!this.rangeValid || this.slots.length === 0) return false;
-            const a = this.toMin(this.start);
-            const b = this.toMin(this.end);
-            return this.slots
-                .filter(s => this.toMin(s.start) >= a && this.toMin(s.end) <= b)
-                .every(s => s.available);
+            if (!this.rangeValid) return false;
+            for (let k = this.fromIdx; k <= this.toIdx; k++) {
+                if (!this.slots[k] || !this.slots[k].available) return false;
+            }
+            return true;
         },
 
         get bisaDiajukan() {
             return this.facilityId
                 && this.rangeValid
                 && this.rangeTersedia
+                && this.durasiJam >= 0.5
+                && this.durasiJam <= 4
                 && this.tujuan.trim().length >= 5;
         },
 
         isSelected(s) {
-            if (!this.start || !this.end) return false;
-            return this.toMin(s.start) >= this.toMin(this.start)
-                && this.toMin(s.end) <= this.toMin(this.end);
+            if (this.fromIdx === null) return false;
+            const i = this.slots.indexOf(s);
+            return i >= this.fromIdx && i <= this.toIdx;
         },
 
         pilihSlot(s) {
             if (!s.available) return;
-            const slotMin = this.toMin(s.start);
-            const startMin = this.toMin(this.start);
+            const i = this.slots.indexOf(s);
 
-            if (this.selectingStart || !this.start || slotMin < startMin) {
-                this.start = s.start;
-                this.end = s.end;
-                this.selectingStart = false;
-            } else {
-                const valid = this.slots
-                    .filter(item => this.toMin(item.start) >= startMin && this.toMin(item.end) <= this.toMin(s.end))
-                    .every(item => item.available);
-
-                if (valid) {
-                    this.end = s.end;
-                    this.selectingStart = true;
+            if (this.fromIdx === null) {
+                this.fromIdx = this.toIdx = i;
+            } else if (i >= this.fromIdx && i <= this.toIdx) {
+                if (this.toIdx - this.fromIdx === 0) {
+                    this.fromIdx = this.toIdx = null;
+                } else if (i === this.fromIdx) {
+                    this.fromIdx = i + 1;
+                } else if (i === this.toIdx) {
+                    this.toIdx = i - 1;
                 } else {
-                    this.start = s.start;
-                    this.end = s.end;
-                    this.selectingStart = false;
+                    this.fromIdx = this.toIdx = i;
                 }
+            } else if (i > this.toIdx && this.rangeAvailable(this.toIdx + 1, i)) {
+                this.toIdx = i;
+            } else if (i < this.fromIdx && this.rangeAvailable(i, this.fromIdx - 1)) {
+                this.fromIdx = i;
+            } else {
+                this.fromIdx = this.toIdx = i;
             }
+
+            if (this.fromIdx !== null && this.toIdx !== null) {
+                this.start = this.slots[this.fromIdx].start;
+                this.end   = this.slots[this.toIdx].end;
+            } else {
+                this.start = '';
+                this.end = '';
+            }
+        },
+
+        rangeAvailable(a, b) {
+            for (let k = Math.min(a, b); k <= Math.max(a, b); k++) {
+                if (!this.slots[k] || !this.slots[k].available) return false;
+            }
+            return true;
         },
 
         gantiFasilitas(id) {

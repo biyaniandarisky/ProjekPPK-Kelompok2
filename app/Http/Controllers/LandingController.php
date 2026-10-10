@@ -4,20 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Facility;
-use App\Models\Reservation;
+use App\Services\SlotService;
 use Carbon\Carbon;
 
 class LandingController extends Controller
 {
-    /** Slot operasional 30 menit (07.00 - 20.00). */
-    private const OPERATIONAL_SLOTS = [
-        '07:00','07:30','08:00','08:30','09:00','09:30',
-        '10:00','10:30','11:00','11:30','12:00','12:30',
-        '13:00','13:30','14:00','14:30','15:00','15:30',
-        '16:00','16:30','17:00','17:30','18:00','18:30',
-        '19:00','19:30',
-    ];
-
     /**
      * Halaman awal untuk Pengunjung (belum login) maupun pengguna lain.
      */
@@ -61,7 +52,7 @@ class LandingController extends Controller
     /**
      * JSON ketersediaan slot per 30 menit untuk satu fasilitas pada satu tanggal.
      */
-    public function checkAvailability(Request $request, $id)
+    public function checkAvailability(Request $request, $id, SlotService $slotService)
     {
         $facility = Facility::where('status', '!=', 'nonaktif')->findOrFail($id);
         $today    = now()->toDateString();
@@ -69,38 +60,10 @@ class LandingController extends Controller
 
         $isMaintenance = in_array($facility->status, ['dalam_perbaikan', 'selesai'], true);
 
-        $slots = [];
-        if (!$isMaintenance) {
-            // Cek pending + approved (slot pending dikunci)
-            $booked = Reservation::where('facility_id', $facility->id)
-                ->where('tanggal', $tanggal)
-                ->whereIn('status', ['pending', 'approved'])
-                ->get(['start_time', 'end_time']);
-
-            $now = now();
-
-            foreach (self::OPERATIONAL_SLOTS as $start) {
-                $end = Carbon::createFromFormat('H:i', $start)->addMinutes(30)->format('H:i');
-
-                // Rumus overlap: slotStart < resEnd AND slotEnd > resStart
-                $isBooked = $booked->contains(function ($res) use ($start, $end) {
-                    $resStart = substr($res->start_time, 0, 5);
-                    $resEnd   = substr($res->end_time, 0, 5);
-                    return $start < $resEnd && $end > $resStart;
-                });
-
-                $slotStartAt = Carbon::createFromFormat('Y-m-d H:i', "{$tanggal} {$start}");
-                $isPast      = $slotStartAt->lte($now);
-
-                $slots[] = [
-                    'start'        => $start,
-                    'end'          => $end,
-                    'is_booked'    => $isBooked,
-                    'is_past'      => $isPast,
-                    'is_available' => !$isBooked && !$isPast,
-                ];
-            }
-        }
+        // Hanya hitung slot kalau tidak dalam perbaikan
+        $slots = $isMaintenance
+            ? []
+            : $slotService->getSlots($facility->id, $tanggal);
 
         return response()->json([
             'facility' => [

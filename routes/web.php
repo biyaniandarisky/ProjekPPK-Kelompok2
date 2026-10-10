@@ -120,6 +120,8 @@ Route::middleware(['auth', 'role:petugas'])
             ->name('laporan.process');
         Route::post('/laporan/{id}/resolve', [PetugasController::class, 'resolveLaporan'])
             ->name('laporan.resolve');
+        Route::post('/laporan/{id}/reject', [PetugasController::class, 'rejectLaporan'])
+            ->name('laporan.reject');
 
         // === FASILITAS ===
         Route::get('/fasilitas', [PetugasController::class, 'fasilitasIndex'])
