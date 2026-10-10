@@ -33,6 +33,8 @@ Route::post('/pesan/intent', [LandingController::class, 'bookingIntent'])
 |--------------------------------------------------------------------------
 | AUTH ROUTES (Login, Register, Logout)
 |--------------------------------------------------------------------------
+| Registrasi mandiri HANYA untuk pengguna (mahasiswa/dosen/staf).
+| Petugas tidak punya registrasi mandiri: akunnya dibuat oleh admin.
 */
 
 Route::middleware('guest')->group(function () {
@@ -138,6 +140,8 @@ Route::middleware(['auth', 'role:petugas'])
 |--------------------------------------------------------------------------
 | GROUP: ADMIN
 |--------------------------------------------------------------------------
+| Semua halaman admin adalah tab di satu view (admin.dashboard);
+| route GET lain hanya redirect ke tab yang sesuai (?page=...).
 */
 
 Route::middleware(['auth', 'role:admin'])
@@ -145,34 +149,35 @@ Route::middleware(['auth', 'role:admin'])
     ->name('admin.')
     ->group(function () {
 
-        // Dashboard
+        // Dashboard (semua tab)
         Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
 
-        // ===== REKAP & EXPORT =====
-        Route::get('/rekap', [AdminController::class, 'rekapOkupansi'])->name('rekap.index');
-        Route::get('/rekap/okupansi', [AdminController::class, 'rekapOkupansi'])->name('rekap.okupansi');
-        Route::get('/rekap/kerusakan', [AdminController::class, 'rekapKerusakan'])->name('rekap.kerusakan');
-        Route::get('/rekap/export/{format}', [AdminController::class, 'exportFullData'])->name('rekap.export');
+        // ===== REKAP & EXPORT (okupansi + frekuensi kerusakan per fasilitas/lokasi) =====
+        Route::get('/rekap', [AdminController::class, 'rekapIndex'])->name('rekap.index');
+        Route::get('/rekap/okupansi', [AdminController::class, 'rekapIndex'])->name('rekap.okupansi');
+        Route::get('/rekap/kerusakan', [AdminController::class, 'rekapIndex'])->name('rekap.kerusakan');
+        Route::get('/rekap/export/{format}', [AdminController::class, 'exportFullData'])
+            ->whereIn('format', ['csv', 'excel', 'pdf'])
+            ->name('rekap.export');
 
-        // ===== MANAJEMEN USER =====
+        // ===== AKUN: DAFTAR LANGSUNG (petugas & pengguna) =====
         Route::get('/users', [AdminController::class, 'usersIndex'])->name('users.index');
-        Route::get('/users/create', [AdminController::class, 'usersIndex'])->name('users.create'); // alias ke index
-        Route::post('/register-user', [AdminController::class, 'storeUserByAdmin'])->name('users.store');
-        Route::post('/users/{id}/verify', [AdminController::class, 'verifyUser'])->name('users.verify');
-        Route::post('/users/{id}/reject', [AdminController::class, 'rejectUser'])->name('users.reject');
-        Route::get('/users/{id}/ktm', [AdminController::class, 'showKtm'])->name('users.ktm');
-
-        // ===== DAFTAR PETUGAS & PENGGUNA LANGSUNG =====
+        Route::get('/users/create', [AdminController::class, 'usersCreate'])->name('users.create');
         Route::post('/petugas', [AdminController::class, 'storePetugas'])->name('petugas.store');
         Route::delete('/petugas/{id}', [AdminController::class, 'destroyPetugas'])->name('petugas.destroy');
         Route::post('/pengguna', [AdminController::class, 'storePenggunaDirect'])->name('pengguna.store');
         Route::delete('/pengguna/{id}', [AdminController::class, 'destroyPengguna'])->name('pengguna.destroy');
-        
-        // ===== KELOLA FASILITAS =====
+        Route::post('/register-user', [AdminController::class, 'storeUserByAdmin'])->name('users.store'); // generik (opsional)
+
+        // ===== VERIFIKASI REGISTRASI MANDIRI PENGGUNA =====
+        Route::post('/users/{id}/verify', [AdminController::class, 'verifyUser'])->name('users.verify');
+        Route::post('/users/{id}/reject', [AdminController::class, 'rejectUser'])->name('users.reject');
+        Route::get('/users/{id}/ktm', [AdminController::class, 'showKtm'])->name('users.ktm');
+
+        // ===== KELOLA FASILITAS (tambah / edit / nonaktifkan) =====
         Route::get('/facilities', [AdminController::class, 'facilitiesIndex'])->name('facilities.index');
-        Route::get('/facilities/create', [AdminController::class, 'facilitiesIndex'])->name('facilities.create'); // alias
+        Route::get('/facilities/create', [AdminController::class, 'facilitiesIndex'])->name('facilities.create');
         Route::post('/facilities', [AdminController::class, 'storeFacility'])->name('facilities.store');
         Route::put('/facilities/{id}', [AdminController::class, 'updateFacility'])->name('facilities.update');
-        Route::delete('/facilities/{id}', [AdminController::class, 'destroyFacility'])->name('facilities.destroy');
         Route::post('/facilities/{id}/toggle', [AdminController::class, 'toggleFacilityStatus'])->name('facilities.toggle');
     });
