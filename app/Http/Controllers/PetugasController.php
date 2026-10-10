@@ -265,6 +265,15 @@ class PetugasController extends Controller
             'petugas_id'       => auth()->id(),
         ]);
 
+        // Kirim Notifikasi ke Pengguna
+        Notification::create([
+            'user_id' => $report->user_id,
+            'judul'   => 'Laporan Selesai',
+            'pesan'   => 'Laporan kendala Anda pada ' . ($report->facility->nama_fasilitas ?? 'fasilitas') . ' telah selesai ditangani. Catatan: ' . $request->catatan_resolusi,
+            'tipe'    => 'success',
+            'link'    => route('pengguna.laporan.index'),
+        ]);
+
         // Fasilitas pindah ke "selesai" hanya jika tidak ada laporan terbuka lain.
         $masihTerbuka = $report->facility->reports()
             ->whereIn('status_laporan', ['baru', 'diproses'])
@@ -309,7 +318,6 @@ class PetugasController extends Controller
         }
 
         // Aksi 2: Selesai. Hanya boleh dari Dalam Perbaikan.
-        // Laporan terbuka ditutup, tetapi fasilitas BELUM aktif.
         if ($request->status === 'selesai') {
             if ($facility->status !== 'dalam_perbaikan') {
                 return back()->with('info', "{$facility->nama_fasilitas} tidak sedang dalam perbaikan.");
@@ -318,19 +326,33 @@ class PetugasController extends Controller
             $catatan = $request->catatan_resolusi
                 ?: 'Perbaikan telah diselesaikan oleh petugas sarana.';
 
-            $terdampak = $facility->reports()
+            // Ambil dulu laporan yang akan diselesaikan untuk dikirimi notifikasi
+            $laporanTerdampak = $facility->reports()
                 ->whereIn('status_laporan', ['baru', 'diproses'])
-                ->update([
+                ->get();
+
+            foreach ($laporanTerdampak as $rep) {
+                $rep->update([
                     'status_laporan'   => 'selesai',
                     'catatan_resolusi' => $catatan,
                     'petugas_id'       => $petugasId,
                     'updated_at'       => now(),
                 ]);
 
+                // Kirim notifikasi ke masing-masing pemilik laporan
+                Notification::create([
+                    'user_id' => $rep->user_id,
+                    'judul'   => 'Laporan Selesai',
+                    'pesan'   => 'Laporan kendala Anda pada ' . ($facility->nama_fasilitas ?? 'fasilitas') . ' telah diselesaikan. Catatan: ' . $catatan,
+                    'tipe'    => 'success',
+                    'link'    => route('pengguna.laporan.index'),
+                ]);
+            }
+
             $facility->update(['status' => 'selesai']);
 
             return back()->with('success', "Perbaikan {$facility->nama_fasilitas} selesai. Aktifkan kembali agar bisa dipesan."
-                . ($terdampak > 0 ? " {$terdampak} laporan terkait otomatis ditandai Selesai." : ''));
+                . (count($laporanTerdampak) > 0 ? " " . count($laporanTerdampak) . " laporan terkait otomatis ditandai Selesai." : ''));
         }
 
         // Aksi 3: Aktifkan. Hanya boleh setelah perbaikan diselesaikan.
