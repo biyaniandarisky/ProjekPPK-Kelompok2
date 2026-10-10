@@ -166,7 +166,8 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('/petugas', [AdminController::class, 'storePetugas'])->name('petugas.store');
         Route::delete('/petugas/{id}', [AdminController::class, 'destroyPetugas'])->name('petugas.destroy');
         Route::post('/pengguna', [AdminController::class, 'storePenggunaDirect'])->name('pengguna.store');
-
+        Route::delete('/pengguna/{id}', [AdminController::class, 'destroyPengguna'])->name('pengguna.destroy');
+        
         // ===== KELOLA FASILITAS =====
         Route::get('/facilities', [AdminController::class, 'facilitiesIndex'])->name('facilities.index');
         Route::get('/facilities/create', [AdminController::class, 'facilitiesIndex'])->name('facilities.create'); // alias

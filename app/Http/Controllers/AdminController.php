@@ -384,4 +384,17 @@ class AdminController extends Controller
             fclose($out);
         }, "{$name}.csv", ['Content-Type' => 'text/csv']);
     }
+
+    //Destroy Pengguna
+    public function destroyPengguna($id)
+    {
+        // Hanya akun pengguna biasa yang boleh dihapus lewat route ini
+        $user = User::whereNotIn('role', ['admin', 'petugas'])->findOrFail($id);
+        $nama = $user->name;
+        $user->delete();
+
+        return redirect()
+            ->route('admin.dashboard', ['page' => 'data_akun'])
+            ->with('success', "Akun pengguna {$nama} berhasil dihapus.");
+    }
 }
