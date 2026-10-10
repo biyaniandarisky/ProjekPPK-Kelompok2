@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Surat Persetujuan Reservasi #{{ $reservation->id }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=Mrs+Saint+Delafield&display=swap" rel="stylesheet">
     <script>
         tailwind.config = { theme: { extend: { fontFamily: { sans: ['"Open Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'] } } } }
     </script>
     <style>
+        .ttd-font { font-family: 'Mrs Saint Delafield', 'Brush Script MT', cursive; }
         @media print {
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .no-print { display: none !important; }
             body { background: white !important; padding: 0 !important; }
             .print-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
@@ -78,7 +80,7 @@
                     </tr>
                     <tr>
                         <td class="py-1 font-semibold text-slate-600">Tanggal Pemakaian</td>
-                        <td class="py-1 font-extrabold text-emerald-800">: {{ \Carbon\Carbon::parse($reservation->tanggal)->translatedFormat('l, d F Y') }}</td>
+                        <td class="py-1 font-extrabold text-emerald-800">: {{ \Carbon\Carbon::parse($reservation->tanggal)->locale('id')->translatedFormat('l, d F Y') }}</td>
                     </tr>
                     <tr>
                         <td class="py-1 font-semibold text-slate-600">Waktu Pemakaian</td>
@@ -103,19 +105,28 @@
         </div>
 
         <!-- TANDA TANGAN & PENGESAHAN -->
-        <div class="pt-6 flex justify-between items-end border-t border-slate-100">
-            <div class="text-center space-y-2">
-                <div class="w-24 h-24 border-2 border-slate-900 rounded-xl flex items-center justify-center p-1 bg-slate-50 mx-auto">
-                    <span class="text-[9px] font-black text-slate-400 text-center uppercase tracking-widest leading-tight">VERIFIED<br>VALID PERMIT</span>
-                </div>
-                <p class="text-[9px] text-slate-400 font-bold">Persetujuan Sah Digital</p>
-            </div>
-
+        @php
+            $namaPetugas = $reservation->petugas->name ?? $reservation->petugas->nama ?? 'Tim Verifikasi Sarpras';
+            // Hanya nama, tanpa keterangan jabatan di dalam tanda kurung
+            $namaPetugas = trim(preg_replace('/\s*\(.*?\)/', '', $namaPetugas));
+            $waktuSetuju = \Carbon\Carbon::parse($reservation->updated_at)->locale('id')->translatedFormat('d F Y, H:i');
+        @endphp
+        <div class="pt-6 flex justify-end items-end border-t border-slate-100">
             <div class="text-right space-y-1 text-xs">
-                <p class="text-slate-600">Disetujui pada: <strong>{{ \Carbon\Carbon::parse($reservation->updated_at)->translatedFormat('d F Y, H:i') }} WIB</strong></p>
+                <p class="text-slate-600">Disetujui pada: <strong>{{ $waktuSetuju }} WIB</strong></p>
                 <p class="font-bold text-slate-800">Petugas Pengelola Sarpras,</p>
-                <div class="h-14"></div>
-                <p class="font-black text-slate-900 underline">{{ $reservation->petugas->name ?? $reservation->petugas->nama ?? 'Tim Verifikasi Sarpras' }}</p>
+
+                {{-- Tanda tangan --}}
+                <div class="h-16 flex items-center justify-end">
+                    <div class="relative inline-block pr-2">
+                        <span class="ttd-font text-4xl text-blue-900 leading-none inline-block -rotate-3">{{ $namaPetugas }}</span>
+                        <svg class="absolute left-0 -bottom-1 w-full h-2 text-blue-900" viewBox="0 0 100 8" preserveAspectRatio="none" fill="none">
+                            <path d="M1 6 C 20 1, 40 7, 60 3 S 90 2, 99 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <p class="font-black text-slate-900 underline">{{ $namaPetugas }}</p>
                 <p class="text-[10px] text-slate-500">NIP. {{ $reservation->petugas->nim_nip ?? '—' }}</p>
             </div>
         </div>
