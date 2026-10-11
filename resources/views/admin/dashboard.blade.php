@@ -9,12 +9,10 @@
 
     $pendingCount = count($pendingUsers);
 
-    // Daftar pengguna (non-petugas). Dikirim dari controller sebagai $pengguna.
     $penggunaList = $pengguna ?? \App\Models\User::where(function ($q) {
         $q->whereNull('role')->orWhereNotIn('role', ['admin', 'petugas']);
     })->latest()->get();
 
-    // Helper tampilan status verifikasi
     $svLabel = function ($v) {
         $v = strtolower((string) $v);
         if ($v === '') return 'Aktif';
@@ -28,16 +26,17 @@
         if (str_contains($v, 'tolak') || str_contains($v, 'reject')) return 'bg-rose-50 text-rose-700';
         return 'bg-emerald-50 text-emerald-700';
     };
-    $totalPetugas  = count($petugas);
-    $totalPengguna = count($penggunaList);
+    $totalPetugas    = count($petugas);
+    $totalPengguna   = count($penggunaList);
+    $totalUsersCount = $totalPetugas + $totalPengguna;
 
     $input = 'w-full h-11 px-4 border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-900 transition';
 
     $badge = [
-        'aktif'            => 'bg-emerald-50 text-emerald-700',
-        'dalam_perbaikan'  => 'bg-amber-50 text-amber-700',
-        'selesai'          => 'bg-blue-50 text-blue-700',
-        'nonaktif'         => 'bg-rose-50 text-rose-700',
+        'aktif'           => 'bg-emerald-50 text-emerald-700',
+        'dalam_perbaikan' => 'bg-amber-50 text-amber-700',
+        'selesai'         => 'bg-blue-50 text-blue-700',
+        'nonaktif'        => 'bg-rose-50 text-rose-700',
     ];
 
     $barColors = [
@@ -48,32 +47,23 @@
     ];
 
     $statusLabel = [
-        'aktif'            => 'Aktif',
-        'dalam_perbaikan'  => 'Maintenance',
-        'selesai'          => 'Selesai Diperbaiki',
-        'nonaktif'         => 'Nonaktif',
+        'aktif'           => 'Aktif',
+        'dalam_perbaikan' => 'Maintenance',
+        'selesai'         => 'Selesai Diperbaiki',
+        'nonaktif'        => 'Nonaktif',
     ];
 
-    $maxOcc = max(1, max($occupancy ?: [1]));
+    // ---- OKUPANSI: controller sudah mengirim 7 hari ke depan (rolling) ----
+    $occupancySorted = $occupancy ?? [];
+    $maxOcc = max(1, max($occupancySorted ?: [1]));
 
     // ---- Rekap ----
-    $rekapList     = $rekap ?? collect();
-    $rekapLokasi   = $rekapLokasi ?? collect();
-    $sumReservasi  = $rekapList->sum('reservations_count');
-    $sumJam        = round($rekapList->sum('jam_terpakai'), 1);
-    $avgOkupansi   = $rekapList->count() ? (int) round($rekapList->avg('okupansi')) : 0;
-    $sumLaporan    = $rekapList->sum('reports_count');
-    $sumKerusakan  = $rekapList->sum('kerusakan_count');
-    $maxKerusakanLokasi = max(1, (int) ($rekapLokasi->max('kerusakan') ?? 0));
-
-    // Route export (admin.rekap.export). Kalau tidak ada, tombol ekspor otomatis disembunyikan.
+    $rekapList   = $rekap ?? collect();
     $exportRoute = 'admin.rekap.export';
     $exportQuery = request()->only(['start_date', 'end_date', 'facility_id']);
 
-    // Halaman awal: ?page=... > tab asal form yang gagal validasi > flash session > dashboard
     $initialPage = request('page') ?: (old('_form') ?: (session('page') ?: 'dashboard'));
 
-    // Menu sidebar
     $menu = [
         'dashboard'   => ['Dashboard', 'Dashboard Admin'],
         'tambah_akun' => ['Tambah Akun', 'Tambah Akun'],
@@ -83,12 +73,11 @@
         'rekap'       => ['Rekapitulasi', 'Rekapitulasi & Ekspor'],
     ];
 
-    // Kartu statistik
     $statCards = [
         [
             'label' => 'Total Akun',
-            'value' => $totalUsers,
-            'subtitle' => 'Terdaftar di sistem',
+            'value' => $totalUsersCount,
+            'subtitle' => 'Petugas & pengguna',
             'page' => 'data_akun',
             'gradient' => 'from-blue-600 to-blue-800',
             'text_color' => 'text-blue-100',
@@ -123,7 +112,6 @@
         ],
     ];
 
-    // Kartu pintasan di dashboard
     $shortcuts = [
         [
             'title' => 'Tambah Akun',
@@ -181,7 +169,6 @@
         init() {
             this.form = { ...this.blank };
             this.$watch('sidebar', v => document.body.classList.toggle('overflow-hidden', v));
-            // Setiap pindah halaman, langsung kembali ke atas
             this.$watch('page', () => window.scrollTo({ top: 0, behavior: 'auto' }));
         },
         go(target) {
@@ -263,40 +250,42 @@
     </aside>
 
     {{-- MAIN CONTENT --}}
-    <div class="lg:ml-64 pt-14">
-        <main class="p-4 sm:p-5 lg:p-6 space-y-5">
+    <div class="lg:ml-64 pt-13">
+        <main class="px-4 sm:px-5 lg:px-6 pt-0 pb-6">
 
             {{-- FLASH --}}
-            @if(session('success'))
-                <div class="px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium flex items-start gap-2">
-                    <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <span>{{ session('success') }}</span>
-                </div>
-            @endif
+            <div class="space-y-3 empty:hidden [&:not(:empty)]:pb-2">
+                @if(session('success'))
+                    <div class="px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium flex items-start gap-2">
+                        <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>{{ session('success') }}</span>
+                    </div>
+                @endif
 
-            @if(session('error'))
-                <div class="px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium flex items-start gap-2">
-                    <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <span>{{ session('error') }}</span>
-                </div>
-            @endif
+                @if(session('error'))
+                    <div class="px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium flex items-start gap-2">
+                        <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>{{ session('error') }}</span>
+                    </div>
+                @endif
 
-            @if($errors->any())
-                <div class="px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium">
-                    <ul class="list-disc list-inside space-y-0.5">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
+                @if($errors->any())
+                    <div class="px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium">
+                        <ul class="list-disc list-inside space-y-0.5">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            </div>
 
             {{-- ============ DASHBOARD ============ --}}
-            <section x-show="page === 'dashboard'" x-cloak class="space-y-6">
+            <section x-show="page === 'dashboard'" x-cloak class="-mt-2 space-y-5">
                 <div>
                     <h1 class="text-2xl font-black text-slate-900">Dashboard Admin</h1>
                     <p class="text-sm text-slate-500 mt-1">Rekapitulasi keseluruhan aktivitas sistem</p>
@@ -324,19 +313,20 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    {{-- Grafik Reservasi 7 Hari ke Depan --}}
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                         <div class="flex items-center justify-between mb-6">
-                            <h3 class="font-black text-slate-900">Okupansi Fasilitas</h3>
-                            <span class="text-xs font-bold text-slate-400">Minggu ini</span>
+                            <h3 class="font-black text-slate-900">Reservasi per Hari</h3>
+                            <span class="text-xs font-bold text-slate-400">7 Hari ke Depan</span>
                         </div>
                         <div class="flex items-end justify-between gap-2 h-40">
-                            @foreach($occupancy as $day => $count)
+                            @foreach($occupancySorted as $day => $count)
                                 <div class="flex-1 flex flex-col items-center justify-end h-full gap-2 group">
                                     <span class="text-[10px] font-bold text-slate-600 opacity-0 group-hover:opacity-100 transition">{{ $count }}</span>
                                     <div class="w-full bg-blue-900 hover:bg-blue-800 rounded-t-lg transition-all duration-300 min-h-[4px]"
                                          style="height: {{ $count > 0 ? max(4, round($count / $maxOcc * 100)) : 4 }}%"
                                          title="{{ $count }} reservasi"></div>
-                                    <span class="text-xs font-bold text-slate-500">{{ $day }}</span>
+                                    <span class="text-[10px] font-bold text-slate-500 text-center leading-tight">{{ $day }}</span>
                                 </div>
                             @endforeach
                         </div>
@@ -397,7 +387,7 @@
             </section>
 
             {{-- ============ TAMBAH AKUN ============ --}}
-            <section x-show="page === 'tambah_akun'" x-cloak class="space-y-6">
+            <section x-show="page === 'tambah_akun'" x-cloak class="-mt-2 space-y-6">
                 <div>
                     <h1 class="text-2xl font-black text-slate-900">Tambah Akun</h1>
                     <p class="text-sm text-slate-500 mt-1">
@@ -448,7 +438,6 @@
                         <input name="no_hp" value="{{ old('no_hp') }}" placeholder="08xxxxxxxxxx" class="{{ $input }}">
                     </div>
 
-                    {{-- Khusus petugas --}}
                     <div x-show="role === 'petugas'">
                         <label class="block text-sm font-bold text-slate-700 mb-1.5">Unit / Divisi</label>
                         <select name="unit" :disabled="role !== 'petugas'" class="{{ $input }}">
@@ -458,7 +447,6 @@
                         </select>
                     </div>
 
-                    {{-- Khusus pengguna --}}
                     <div x-show="role === 'pengguna'" x-cloak>
                         <label class="block text-sm font-bold text-slate-700 mb-1.5">Tipe Pengguna <span class="text-rose-500">*</span></label>
                         <select name="tipe_pengguna" :disabled="role !== 'pengguna'" :required="role === 'pengguna'" class="{{ $input }}">
@@ -485,7 +473,7 @@
             {{-- ============ DATA AKUN ============ --}}
             <section x-show="page === 'data_akun'" x-cloak
                      x-data="{ tab: 'semua', q: '' }"
-                     class="space-y-6">
+                     class="-mt-2 space-y-6">
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <h1 class="text-2xl font-black text-slate-900">Data Akun</h1>
@@ -534,7 +522,6 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                {{-- Petugas --}}
                                 @foreach($petugas as $p)
                                     <tr class="hover:bg-slate-50"
                                         data-s="{{ mb_strtolower($p->name.' '.$p->email.' '.$p->nim_nip) }}"
@@ -558,7 +545,6 @@
                                     </tr>
                                 @endforeach
 
-                                {{-- Pengguna --}}
                                 @foreach($penggunaList as $u)
                                     <tr class="hover:bg-slate-50"
                                         data-s="{{ mb_strtolower($u->name.' '.$u->email.' '.($u->nim_nip ?? '')) }}"
@@ -605,7 +591,6 @@
                         </table>
                     </div>
 
-                    {{-- Mobile --}}
                     <div class="md:hidden divide-y divide-slate-100">
                         @foreach($petugas as $p)
                             <div class="p-4 space-y-2"
@@ -659,7 +644,6 @@
                     </div>
                 </div>
 
-                {{-- Modal Konfirmasi Hapus Petugas --}}
                 @foreach($petugas as $p)
                     <div x-show="confirmDeletePetugas === {{ $p->id }}" x-cloak
                          class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -678,7 +662,6 @@
                     </div>
                 @endforeach
 
-                {{-- Modal Konfirmasi Hapus Pengguna --}}
                 @foreach($penggunaList as $u)
                     <div x-show="confirmDeletePengguna === {{ $u->id }}" x-cloak
                          class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -701,7 +684,7 @@
             {{-- ============ VERIFIKASI ============ --}}
             <section x-show="page === 'verifikasi'" x-cloak
                      x-data="{ rejectId: null }"
-                     class="space-y-6">
+                     class="-mt-2 space-y-6">
                 <div>
                     <h1 class="text-2xl font-black text-slate-900">Verifikasi Pengguna</h1>
                     <p class="text-sm text-slate-500 mt-1">
@@ -749,7 +732,6 @@
                     @endif
                 </div>
 
-                {{-- Modal Tolak (alasan wajib diisi, sesuai validasi controller) --}}
                 @foreach($pendingUsers as $u)
                     <div x-show="rejectId === {{ $u->id }}" x-cloak
                          class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -774,7 +756,7 @@
             </section>
 
             {{-- ============ FASILITAS ============ --}}
-            <section x-show="page === 'fasilitas'" x-cloak class="space-y-6">
+            <section x-show="page === 'fasilitas'" x-cloak class="-mt-2 space-y-6">
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <h1 class="text-2xl font-black text-slate-900">Data Fasilitas</h1>
@@ -835,13 +817,19 @@
             </section>
 
             {{-- ============ REKAP ============ --}}
-            <section x-show="page === 'rekap'" x-cloak class="space-y-6">
+            <section x-show="page === 'rekap'" x-cloak class="-mt-2 space-y-6">
                 <div>
                     <h1 class="text-2xl font-black text-slate-900">Rekapitulasi & Ekspor</h1>
-                    <p class="text-sm text-slate-500 mt-1">Rekap okupansi fasilitas dan frekuensi kerusakan per fasilitas / lokasi</p>
+                    <p class="text-sm text-slate-500 mt-1">
+                        Rekap okupansi fasilitas dan frekuensi kerusakan per fasilitas
+                    </p>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Basis okupansi: <strong>13 jam operasional/hari (07.00 – 20.00)</strong>
+                        × {{ $jumlahHariPeriode }} hari = <strong>{{ $totalJamTersedia }} jam tersedia</strong>
+                    </p>
                 </div>
 
-                {{-- Filter: nama field harus sama dengan yang dibaca controller (start_date, end_date, facility_id) --}}
+                {{-- Filter --}}
                 <form method="GET" action="{{ route('admin.dashboard') }}"
                       class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
                     <input type="hidden" name="page" value="rekap">
@@ -879,33 +867,12 @@
                     </div>
                 </form>
 
-                {{-- Ringkasan --}}
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                        <p class="text-[11px] font-bold text-slate-500">Total Reservasi</p>
-                        <p class="text-2xl font-black text-slate-900 mt-1">{{ $sumReservasi }}</p>
-                    </div>
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                        <p class="text-[11px] font-bold text-slate-500">Jam Terpakai</p>
-                        <p class="text-2xl font-black text-slate-900 mt-1">{{ $sumJam }}</p>
-                    </div>
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                        <p class="text-[11px] font-bold text-slate-500">Rata-rata Okupansi</p>
-                        <p class="text-2xl font-black text-slate-900 mt-1">{{ $avgOkupansi }}%</p>
-                    </div>
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                        <p class="text-[11px] font-bold text-slate-500">Frekuensi Kerusakan</p>
-                        <p class="text-2xl font-black text-rose-600 mt-1">{{ $sumKerusakan }}</p>
-                        <p class="text-[10px] text-slate-400 mt-0.5">dari {{ $sumLaporan }} total laporan</p>
-                    </div>
-                </div>
-
-                {{-- Tombol ekspor (mengikuti filter yang sedang aktif) --}}
+                {{-- Ekspor --}}
                 @if(Route::has($exportRoute))
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-4 flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <p class="font-black text-slate-900 text-sm">Ekspor Rekap</p>
-                            <p class="text-xs text-slate-500">Berisi rekap per fasilitas dan per lokasi sesuai filter di atas.</p>
+                            <p class="text-xs text-slate-500">Berisi rekap okupansi dan frekuensi kerusakan per fasilitas.</p>
                         </div>
                         <div class="flex flex-wrap gap-2">
                             <a href="{{ route($exportRoute, array_merge(['format' => 'csv'], $exportQuery)) }}"
@@ -918,52 +885,11 @@
                     </div>
                 @endif
 
-                {{-- Rekap per lokasi --}}
+                {{-- 1. OKUPANSI PER FASILITAS --}}
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     <div class="px-6 py-4 border-b border-slate-200">
-                        <h3 class="font-black text-slate-900">Frekuensi Kerusakan per Lokasi</h3>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Lokasi</th>
-                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Fasilitas</th>
-                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Reservasi</th>
-                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Okupansi</th>
-                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Kerusakan</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @forelse($rekapLokasi as $l)
-                                    <tr class="hover:bg-slate-50">
-                                        <td class="px-6 py-3 font-bold text-slate-900">{{ $l->lokasi }}</td>
-                                        <td class="px-6 py-3 text-right text-slate-600">{{ $l->fasilitas }}</td>
-                                        <td class="px-6 py-3 text-right text-slate-600">{{ $l->reservasi }}</td>
-                                        <td class="px-6 py-3 text-right text-slate-600">{{ $l->okupansi }}%</td>
-                                        <td class="px-6 py-3 min-w-[180px]">
-                                            <div class="flex items-center gap-2">
-                                                <div class="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-                                                    <div class="h-full rounded-full bg-rose-600" style="width: {{ round($l->kerusakan / $maxKerusakanLokasi * 100) }}%"></div>
-                                                </div>
-                                                <span class="text-xs font-black w-8 text-right {{ $l->kerusakan > 0 ? 'text-rose-600' : 'text-slate-400' }}">{{ $l->kerusakan }}</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="5" class="px-6 py-10 text-center text-sm text-slate-400">Tidak ada data untuk filter ini.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {{-- Rekap per fasilitas --}}
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="px-6 py-4 border-b border-slate-200">
-                        <h3 class="font-black text-slate-900">Okupansi & Kerusakan per Fasilitas</h3>
+                        <h3 class="font-black text-slate-900">1. Okupansi per Fasilitas</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Tingkat keterpakaiian tiap fasilitas pada periode terpilih</p>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left">
@@ -975,7 +901,6 @@
                                     <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Jam</th>
                                     <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Okupansi</th>
                                     <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Laporan</th>
-                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Kerusakan</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -987,7 +912,7 @@
                                         </td>
                                         <td class="px-6 py-3 text-slate-600">{{ $f->tipe }}</td>
                                         <td class="px-6 py-3 text-right font-bold text-slate-900">{{ $f->reservations_count }}</td>
-                                        <td class="px-6 py-3 text-right text-slate-600">{{ $f->jam_terpakai }}</td>
+                                        <td class="px-6 py-3 text-right text-slate-600">{{ $f->jam_terpakai }} jam</td>
                                         <td class="px-6 py-3 min-w-[160px]">
                                             <div class="flex items-center gap-2">
                                                 <div class="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
@@ -997,11 +922,51 @@
                                             </div>
                                         </td>
                                         <td class="px-6 py-3 text-right text-slate-600">{{ $f->reports_count }}</td>
-                                        <td class="px-6 py-3 text-right font-bold {{ $f->kerusakan_count > 0 ? 'text-rose-600' : 'text-slate-400' }}">{{ $f->kerusakan_count }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="px-6 py-12 text-center text-sm text-slate-400">Tidak ada data untuk filter ini.</td>
+                                        <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-400">Tidak ada data untuk filter ini.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {{-- 2. FREKUENSI KERUSAKAN PER FASILITAS --}}
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200">
+                        <h3 class="font-black text-slate-900">2. Frekuensi Kerusakan per Fasilitas</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Jumlah laporan per kategori untuk tiap fasilitas</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Fasilitas</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Kerusakan</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Kebersihan</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Fasilitas</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Lainnya</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse($rekapList as $f)
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-6 py-3">
+                                            <p class="font-bold text-slate-900">{{ $f->nama_fasilitas }}</p>
+                                            <p class="text-xs text-slate-400">{{ $f->lokasi }}</p>
+                                        </td>
+                                        <td class="px-6 py-3 text-right {{ $f->kerusakan_count > 0 ? 'font-bold text-rose-600' : 'text-slate-400' }}">{{ $f->kerusakan_count }}</td>
+                                        <td class="px-6 py-3 text-right {{ $f->kebersihan_count > 0 ? 'font-bold text-amber-600' : 'text-slate-400' }}">{{ $f->kebersihan_count }}</td>
+                                        <td class="px-6 py-3 text-right {{ $f->fasilitas_count > 0 ? 'font-bold text-blue-900' : 'text-slate-400' }}">{{ $f->fasilitas_count }}</td>
+                                        <td class="px-6 py-3 text-right {{ $f->lainnya_count > 0 ? 'font-bold text-emerald-600' : 'text-slate-400' }}">{{ $f->lainnya_count }}</td>
+                                        <td class="px-6 py-3 text-right font-black text-slate-900">{{ $f->total_kerusakan }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-400">Tidak ada data untuk filter ini.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -1037,7 +1002,6 @@
                     </div>
                     <div>
                         <label class="block text-sm font-bold mb-1">Status</label>
-                        {{-- Wajib: controller memvalidasi 'status' required --}}
                         <select name="status" x-model="form.status" class="{{ $input }}">
                             @foreach($statusLabel as $val => $lbl)
                                 <option value="{{ $val }}">{{ $lbl }}</option>

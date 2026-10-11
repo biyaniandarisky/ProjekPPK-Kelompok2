@@ -12,12 +12,22 @@ use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\Report;
 use App\Models\Notification;
+use App\Services\SlotService;
 
 class AdminController extends Controller
 {
     /* =========================================================
      |  HELPER
      ========================================================= */
+
+    /**
+     * Jumlah jam operasional per hari — DIAMBIL dari SlotService::SLOTS
+     * agar konsisten dengan sistem pemesanan (07.00-20.00, 26 slot @30 menit = 13 jam).
+     */
+    private function jamOperasionalPerHari(): float
+    {
+        return count(SlotService::SLOTS) * 0.5; // 26 × 0.5 = 13 jam
+    }
 
     /** Redirect ke halaman (tab) dashboard admin dengan flash message. */
     private function toPage(string $page, string $msg, string $type = 'success')
@@ -27,10 +37,6 @@ class AdminController extends Controller
             ->with($type, $msg);
     }
 
-    /**
-     * Query semua akun "pengguna" (bukan admin & bukan petugas).
-     * whereNotIn saja TIDAK cocok dengan role NULL, jadi NULL ditambahkan manual.
-     */
     private function penggunaQuery()
     {
         return User::where(function ($q) {
@@ -47,7 +53,6 @@ class AdminController extends Controller
         }
     }
 
-    /** Periode rekap: default awal bulan s/d hari ini. Tanggal terbalik otomatis ditukar. */
     private function period(Request $request): array
     {
         $start = $this->parseDate($request->input('start_date'), now()->startOfMonth())->startOfDay();
@@ -60,35 +65,44 @@ class AdminController extends Controller
         return [$start, $end];
     }
 
-    /**
-     * Rekap okupansi + frekuensi kerusakan PER FASILITAS pada periode terpilih.
-     * Atribut tambahan per fasilitas: jam_terpakai, okupansi (%),
-     * reservations_count, reports_count (semua laporan), kerusakan_count (kategori Kerusakan).
-     */
+    /* =========================================================
+     |  REKAP PER FASILITAS
+     ========================================================= */
     private function buildRekap(Request $request): Collection
     {
         [$start, $end] = $this->period($request);
 
         $hari        = max(1, (int) $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1);
-        $jamTersedia = $hari * 8; // asumsi 8 jam operasional per hari
+        $jamPerHari  = $this->jamOperasionalPerHari(); // 13 jam
+        $jamTersedia = $hari * $jamPerHari;
 
         $facilities = Facility::query()
             ->when($request->filled('facility_id'), fn($q) => $q->where('id', $request->facility_id))
             ->withCount([
+                // Reservasi: HANYA yang approved (konsisten dengan diagram dashboard)
                 'reservations' => fn($q) => $q
-                    ->whereNotIn('status', ['rejected', 'cancelled'])
+                    ->where('status', 'approved')
                     ->whereBetween('tanggal', [$start->toDateString(), $end->toDateString()]),
                 'reports' => fn($q) => $q->whereBetween('created_at', [$start, $end]),
                 'reports as kerusakan_count' => fn($q) => $q
                     ->whereBetween('created_at', [$start, $end])
                     ->where('kategori_laporan', 'Kerusakan'),
+                'reports as kebersihan_count' => fn($q) => $q
+                    ->whereBetween('created_at', [$start, $end])
+                    ->where('kategori_laporan', 'Kebersihan'),
+                'reports as fasilitas_count' => fn($q) => $q
+                    ->whereBetween('created_at', [$start, $end])
+                    ->where('kategori_laporan', 'Fasilitas'),
+                'reports as lainnya_count' => fn($q) => $q
+                    ->whereBetween('created_at', [$start, $end])
+                    ->where('kategori_laporan', 'Lainnya'),
             ])
             ->orderBy('nama_fasilitas')
             ->get();
 
-        // Satu query untuk semua jam terpakai (hindari N+1)
+        // Jam terpakai: HANYA dari reservasi approved
         $jamPerFasilitas = Reservation::whereIn('facility_id', $facilities->pluck('id'))
-            ->whereNotIn('status', ['rejected', 'cancelled'])
+            ->where('status', 'approved')
             ->whereBetween('tanggal', [$start->toDateString(), $end->toDateString()])
             ->get(['facility_id', 'start_time', 'end_time'])
             ->groupBy('facility_id')
@@ -100,24 +114,27 @@ class AdminController extends Controller
             $jam = (float) ($jamPerFasilitas[$f->id] ?? 0);
             $f->jam_terpakai = round($jam, 1);
             $f->okupansi     = min(100, (int) round($jam / $jamTersedia * 100));
+
+            $f->total_kerusakan = $f->kerusakan_count + $f->kebersihan_count
+                + $f->fasilitas_count + $f->lainnya_count;
         }
 
         return $facilities;
     }
 
-    /** Rekap per LOKASI (agregasi dari rekap per fasilitas). */
+    /** Rekap per LOKASI — dipakai hanya untuk export. */
     private function rekapPerLokasi(Collection $rekap): Collection
     {
         return $rekap
             ->groupBy(fn($f) => $f->lokasi ?: '(Tanpa lokasi)')
             ->map(fn($g, $lokasi) => (object) [
-                'lokasi'      => $lokasi,
-                'fasilitas'   => $g->count(),
-                'reservasi'   => (int) $g->sum('reservations_count'),
-                'jam'         => round($g->sum('jam_terpakai'), 1),
-                'okupansi'    => (int) round($g->avg('okupansi')),
-                'laporan'     => (int) $g->sum('reports_count'),
-                'kerusakan'   => (int) $g->sum('kerusakan_count'),
+                'lokasi'    => $lokasi,
+                'fasilitas' => $g->count(),
+                'reservasi' => (int) $g->sum('reservations_count'),
+                'jam'       => round($g->sum('jam_terpakai'), 1),
+                'okupansi'  => (int) round($g->avg('okupansi')),
+                'laporan'   => (int) $g->sum('reports_count'),
+                'kerusakan' => (int) $g->sum('kerusakan_count'),
             ])
             ->sortByDesc('kerusakan')
             ->values();
@@ -136,13 +153,23 @@ class AdminController extends Controller
      ========================================================= */
     public function dashboard(Request $request)
     {
+        // ---- Reservasi per hari: 7 HARI KE DEPAN mulai HARI INI ----
+        // HANYA hitung status 'approved' (sudah disetujui petugas).
+        $hariIndo = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
         $occupancy = [];
-        foreach (['Sen', 'Sel', 'Rab', 'Kam', 'Jum'] as $i => $nama) {
-            $occupancy[$nama] = Reservation::whereDate('tanggal', now()->startOfWeek()->addDays($i))
-                ->whereNotIn('status', ['rejected', 'cancelled'])
+        $today = now()->startOfDay();
+
+        for ($i = 0; $i < 7; $i++) {
+            $tanggal  = $today->copy()->addDays($i);
+            $namaHari = $hariIndo[$tanggal->dayOfWeek];
+            $label    = $namaHari . ' ' . $tanggal->format('d/m');
+
+            $occupancy[$label] = Reservation::whereDate('tanggal', $tanggal->toDateString())
+                ->where('status', 'approved')
                 ->count();
         }
 
+        // ---- Frekuensi kerusakan global ----
         $totalLaporan = Report::count();
         $damageFreq = Report::selectRaw('kategori_laporan, COUNT(*) as jml')
             ->groupBy('kategori_laporan')
@@ -150,13 +177,20 @@ class AdminController extends Controller
             ->map(fn($j) => $totalLaporan ? (int) round($j / $totalLaporan * 100) : 0)
             ->toArray();
 
+        // ---- Rekap untuk tab Rekapitulasi ----
         [$start, $end] = $this->period($request);
         $rekap = $this->buildRekap($request);
+
+        $hariPeriode      = max(1, (int) $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1);
+        $jamPerHari       = $this->jamOperasionalPerHari();
+        $totalJamTersedia = $hariPeriode * $jamPerHari;
 
         return view('admin.dashboard', [
             'totalUsers'            => User::count(),
             'reservationsThisMonth' => Reservation::whereMonth('tanggal', now()->month)
-                ->whereYear('tanggal', now()->year)->count(),
+                ->whereYear('tanggal', now()->year)
+                ->where('status', 'approved')
+                ->count(),
             'reportsThisMonth'      => Report::whereMonth('created_at', now()->month)
                 ->whereYear('created_at', now()->year)->count(),
             'pendingUsers'          => $this->penggunaQuery()->where('status_verifikasi', 'pending')->latest()->get(),
@@ -171,11 +205,14 @@ class AdminController extends Controller
                 'start' => $start->translatedFormat('d M Y'),
                 'end'   => $end->translatedFormat('d M Y'),
             ],
+            'jumlahHariPeriode'     => $hariPeriode,
+            'jamOperasionalPerHari' => $jamPerHari,
+            'totalJamTersedia'      => $totalJamTersedia,
         ]);
     }
 
     /* =========================================================
-     |  REDIRECT ALIAS (route lama -> tab di dashboard)
+     |  REDIRECT ALIAS
      ========================================================= */
     public function rekapIndex(Request $r)
     {
@@ -198,8 +235,7 @@ class AdminController extends Controller
     }
 
     /* =========================================================
-     |  PENDAFTARAN AKUN LANGSUNG OLEH ADMIN
-     |  (petugas TIDAK registrasi mandiri; pengguna boleh didaftarkan admin)
+     |  PENDAFTARAN AKUN OLEH ADMIN
      ========================================================= */
     private function createAccount(Request $request, string $role)
     {
@@ -223,7 +259,7 @@ class AdminController extends Controller
         ]);
 
         $data['role']              = $role;
-        $data['status_verifikasi'] = 'verified'; // dibuat admin -> langsung aktif
+        $data['status_verifikasi'] = 'verified';
 
         if ($role === 'petugas') {
             $data['tipe_pengguna'] = 'petugas';
@@ -245,7 +281,6 @@ class AdminController extends Controller
         return $this->createAccount($request, 'pengguna');
     }
 
-    /** Endpoint generik (kompatibel dengan route lama /register-user). */
     public function storeUserByAdmin(Request $request)
     {
         $request->validate(['role' => 'required|in:petugas,pengguna']);
@@ -268,7 +303,6 @@ class AdminController extends Controller
 
     public function destroyPengguna($id)
     {
-        // Hanya akun pengguna biasa yang boleh dihapus lewat route ini
         $user = $this->penggunaQuery()->findOrFail($id);
         $nama = $user->name;
 
@@ -282,7 +316,7 @@ class AdminController extends Controller
     }
 
     /* =========================================================
-     |  VERIFIKASI REGISTRASI MANDIRI PENGGUNA
+     |  VERIFIKASI
      ========================================================= */
     public function verifyUser($id)
     {
@@ -346,7 +380,7 @@ class AdminController extends Controller
     }
 
     /* =========================================================
-     |  FASILITAS (tambah / edit / nonaktifkan)
+     |  FASILITAS
      ========================================================= */
     private function facilityRules(): array
     {
@@ -379,7 +413,6 @@ class AdminController extends Controller
         $facility = Facility::findOrFail($id);
         $data = $request->validate($this->facilityRules());
 
-        // Menonaktifkan lewat form edit juga harus dicek reservasi mendatang
         if ($data['status'] === 'nonaktif'
             && $facility->status !== 'nonaktif'
             && $this->hasActiveReservation($facility->id)) {
@@ -400,7 +433,6 @@ class AdminController extends Controller
         return $this->toPage('fasilitas', 'Fasilitas berhasil diperbarui.');
     }
 
-    /** Nonaktifkan <-> Aktifkan. */
     public function toggleFacilityStatus($id)
     {
         $facility = Facility::findOrFail($id);
@@ -420,8 +452,7 @@ class AdminController extends Controller
     }
 
     /* =========================================================
-     |  EXPORT (CSV / EXCEL / PDF)
-     |  Berisi: rekap okupansi + frekuensi kerusakan per fasilitas & per lokasi
+     |  EXPORT
      ========================================================= */
     public function exportFullData(Request $request, string $format)
     {
@@ -430,53 +461,64 @@ class AdminController extends Controller
         [$start, $end] = $this->period($request);
         $periode = $start->format('d/m/Y') . ' - ' . $end->format('d/m/Y');
 
-        $rekap  = $this->buildRekap($request);
-        $lokasi = $this->rekapPerLokasi($rekap);
+        $rekap = $this->buildRekap($request);
 
-        $headFas = [
-            'ID Fasilitas', 'Nama Fasilitas', 'Tipe', 'Lokasi', 'Kapasitas', 'Status',
-            'Total Reservasi', 'Jam Terpakai', 'Okupansi (%)', 'Total Laporan', 'Frekuensi Kerusakan',
+        $headOkupansi = [
+            'ID Fasilitas', 'Nama Fasilitas', 'Tipe', 'Lokasi',
+            'Total Reservasi (Approved)', 'Jam Terpakai', 'Okupansi (%)',
         ];
-        $rowsFas = $rekap->map(fn($f) => [
-            'FAS-' . $f->id, $f->nama_fasilitas, $f->tipe, $f->lokasi, $f->kapasitas, $f->status,
-            $f->reservations_count, $f->jam_terpakai, $f->okupansi, $f->reports_count, $f->kerusakan_count,
+        $rowsOkupansi = $rekap->map(fn($f) => [
+            'FAS-' . $f->id,
+            $f->nama_fasilitas,
+            $f->tipe,
+            $f->lokasi,
+            $f->reservations_count,
+            $f->jam_terpakai,
+            $f->okupansi,
         ])->all();
 
-        $headLok = [
-            'Lokasi', 'Jumlah Fasilitas', 'Total Reservasi', 'Jam Terpakai',
-            'Rata-rata Okupansi (%)', 'Total Laporan', 'Frekuensi Kerusakan',
+        $headKerusakan = [
+            'Nama Fasilitas', 'Lokasi',
+            'Kerusakan', 'Kebersihan', 'Fasilitas', 'Lainnya', 'Total',
         ];
-        $rowsLok = $lokasi->map(fn($l) => [
-            $l->lokasi, $l->fasilitas, $l->reservasi, $l->jam, $l->okupansi, $l->laporan, $l->kerusakan,
+        $rowsKerusakan = $rekap->map(fn($f) => [
+            $f->nama_fasilitas,
+            $f->lokasi,
+            $f->kerusakan_count,
+            $f->kebersihan_count,
+            $f->fasilitas_count,
+            $f->lainnya_count,
+            $f->total_kerusakan,
         ])->all();
 
         $name = 'rekap_kampusreserve_' . date('Ymd_His');
 
         if ($format === 'csv') {
-            return response()->streamDownload(function () use ($periode, $headFas, $rowsFas, $headLok, $rowsLok) {
+            return response()->streamDownload(function () use ($periode, $headOkupansi, $rowsOkupansi, $headKerusakan, $rowsKerusakan) {
                 $out = fopen('php://output', 'w');
-                fwrite($out, "\xEF\xBB\xBF"); // BOM agar Excel membaca UTF-8
-                fputcsv($out, ['Rekap Okupansi & Frekuensi Kerusakan']);
+                fwrite($out, "\xEF\xBB\xBF");
+                fputcsv($out, ['Rekap Okupansi & Frekuensi Kerusakan Fasilitas']);
                 fputcsv($out, ['Periode', $periode]);
+                fputcsv($out, ['Basis okupansi', '13 jam/hari (07.00-20.00)']);
+                fputcsv($out, ['Catatan', 'Reservasi yang dihitung hanya yang berstatus APPROVED']);
                 fputcsv($out, []);
-                fputcsv($out, ['REKAP PER FASILITAS']);
-                fputcsv($out, $headFas);
-                foreach ($rowsFas as $r) {
-                    fputcsv($out, $r);
-                }
+
+                fputcsv($out, ['1. OKUPANSI PER FASILITAS']);
+                fputcsv($out, $headOkupansi);
+                foreach ($rowsOkupansi as $r) fputcsv($out, $r);
                 fputcsv($out, []);
-                fputcsv($out, ['REKAP PER LOKASI']);
-                fputcsv($out, $headLok);
-                foreach ($rowsLok as $r) {
-                    fputcsv($out, $r);
-                }
+
+                fputcsv($out, ['2. FREKUENSI KERUSAKAN PER FASILITAS']);
+                fputcsv($out, $headKerusakan);
+                foreach ($rowsKerusakan as $r) fputcsv($out, $r);
+
                 fclose($out);
             }, "{$name}.csv", ['Content-Type' => 'text/csv; charset=UTF-8']);
         }
 
         $sections = [
-            'Rekap per Fasilitas' => [$headFas, $rowsFas],
-            'Rekap per Lokasi'    => [$headLok, $rowsLok],
+            '1. Okupansi per Fasilitas'            => [$headOkupansi, $rowsOkupansi],
+            '2. Frekuensi Kerusakan per Fasilitas' => [$headKerusakan, $rowsKerusakan],
         ];
 
         if ($format === 'excel') {
@@ -486,8 +528,6 @@ class AdminController extends Controller
             ]);
         }
 
-        // PDF: pakai DomPDF kalau terpasang (composer require barryvdh/laravel-dompdf),
-        // kalau tidak, tampilkan halaman siap-cetak (Ctrl+P -> Save as PDF).
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
             return \Barryvdh\DomPDF\Facade\Pdf::loadHTML($this->exportHtml($sections, $periode, false))
                 ->setPaper('a4', 'landscape')
@@ -497,7 +537,6 @@ class AdminController extends Controller
         return response($this->exportHtml($sections, $periode, true));
     }
 
-    /** Bangun HTML tabel untuk export Excel & PDF. */
     private function exportHtml(array $sections, string $periode, bool $autoPrint): string
     {
         $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rekap Okupansi &amp; Kerusakan</title>'
@@ -506,7 +545,8 @@ class AdminController extends Controller
             . 'table{border-collapse:collapse;width:100%}th,td{border:1px solid #94a3b8;padding:4px 6px;text-align:left}'
             . 'th{background:#e2e8f0}@page{size:A4 landscape;margin:12mm}</style></head><body>'
             . '<h1>Rekap Okupansi &amp; Frekuensi Kerusakan Fasilitas</h1>'
-            . '<p>Periode: ' . e($periode) . '</p>';
+            . '<p>Periode: ' . e($periode) . ' &nbsp;|&nbsp; Basis okupansi: 13 jam/hari (07.00-20.00)'
+            . ' &nbsp;|&nbsp; Hanya reservasi <strong>approved</strong> yang dihitung.</p>';
 
         foreach ($sections as $title => [$head, $rows]) {
             $html .= '<h2>' . e($title) . '</h2><table border="1"><thead><tr>';
